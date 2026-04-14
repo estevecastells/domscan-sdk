@@ -1,0 +1,32 @@
+{
+  "name": "@domscan/sdk",
+  "version": "0.1.0",
+  "description": "Official Node.js and TypeScript SDK for the DomScan Domain Intelligence API",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "domscan",
+    "domain intelligence",
+    "domain api",
+    "dns",
+    "whois",
+    "typescript",
+    "node"
+  ]
+}
