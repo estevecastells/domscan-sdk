@@ -78,6 +78,7 @@ public final class DomScanClient {
         request.httpMethod = endpoint.method
         request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(userAgent, forHTTPHeaderField: "X-DomScan-SDK")
         if let apiKey, !apiKey.isEmpty {
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")

@@ -120,6 +120,7 @@ public sealed class DomScanClient : IDisposable
 
         using var request = new HttpRequestMessage(new HttpMethod(endpoint.Method), urlBuilder.ToString());
         request.Headers.Accept.ParseAdd("application/json");
+        request.Headers.TryAddWithoutValidation("User-Agent", _userAgent);
         request.Headers.Add("X-DomScan-SDK", _userAgent);
 
         if (!string.IsNullOrWhiteSpace(_apiKey))
@@ -207,8 +208,8 @@ public sealed class AvailabilityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/status/bulk",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 
@@ -221,8 +222,8 @@ public sealed class AvailabilityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/status",
-            new[] {  },
-            new[] { "name", "tlds", "prefer_cache" },
+            new string[] {  },
+            new string[] { "name", "tlds", "prefer_cache" },
             false
         ), parameters, cancellationToken);
 
@@ -235,8 +236,8 @@ public sealed class AvailabilityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/coverage",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 }
@@ -259,8 +260,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/tools/dmarc/build",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 
@@ -273,8 +274,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/tools/spf/build",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 
@@ -287,8 +288,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/tools/dkim/check",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -301,8 +302,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/tools/dkim/discover",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -315,8 +316,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/tools/spf/flatten",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 
@@ -329,8 +330,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/dns/all",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -343,8 +344,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/dns/diff",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -357,8 +358,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/dns/history",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -371,8 +372,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/dns/propagation",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -385,8 +386,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/dns",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -399,8 +400,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/dns/security",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -413,8 +414,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/dns/servers",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -427,8 +428,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/tools/dmarc/validate",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 
@@ -441,8 +442,8 @@ public sealed class DnsService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/tools/spf/validate",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 }
@@ -465,8 +466,8 @@ public sealed class DomainService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/value/bulk",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 
@@ -479,8 +480,8 @@ public sealed class DomainService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/compare",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -493,8 +494,8 @@ public sealed class DomainService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/health",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -507,8 +508,8 @@ public sealed class DomainService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/overview",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -521,8 +522,8 @@ public sealed class DomainService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/profile",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -535,8 +536,8 @@ public sealed class DomainService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/score",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -549,8 +550,8 @@ public sealed class DomainService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/value",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -563,8 +564,8 @@ public sealed class DomainService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/health/quick",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -577,8 +578,8 @@ public sealed class DomainService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/tlds/:tld",
-            new[] { "tld" },
-            new[] {  },
+            new string[] { "tld" },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -591,8 +592,8 @@ public sealed class DomainService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/tlds",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -605,8 +606,8 @@ public sealed class DomainService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/suggest",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 }
@@ -629,8 +630,8 @@ public sealed class IntelligenceService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/categorize",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -643,8 +644,8 @@ public sealed class IntelligenceService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/categorize/bulk",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 
@@ -657,8 +658,8 @@ public sealed class IntelligenceService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/company",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -671,8 +672,8 @@ public sealed class IntelligenceService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/similarity",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -685,8 +686,8 @@ public sealed class IntelligenceService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/hosting",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -699,8 +700,8 @@ public sealed class IntelligenceService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/parking",
-            new[] {  },
-            new[] { "domain" },
+            new string[] {  },
+            new string[] { "domain" },
             false
         ), parameters, cancellationToken);
 
@@ -713,8 +714,8 @@ public sealed class IntelligenceService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/redirects",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -727,8 +728,8 @@ public sealed class IntelligenceService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/tech",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 }
@@ -751,8 +752,8 @@ public sealed class MetaService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/pricing",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 }
@@ -775,8 +776,8 @@ public sealed class OsintService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/whois/bulk",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 
@@ -789,8 +790,8 @@ public sealed class OsintService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/dns/reverse/ns",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -803,8 +804,8 @@ public sealed class OsintService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/graph",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -817,8 +818,8 @@ public sealed class OsintService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/lifecycle",
-            new[] {  },
-            new[] { "domain" },
+            new string[] {  },
+            new string[] { "domain" },
             false
         ), parameters, cancellationToken);
 
@@ -831,8 +832,8 @@ public sealed class OsintService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/ip",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -845,8 +846,8 @@ public sealed class OsintService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/mac",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -859,8 +860,8 @@ public sealed class OsintService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/reverse/ip",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -873,8 +874,8 @@ public sealed class OsintService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/reverse/mx",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -887,8 +888,8 @@ public sealed class OsintService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/whois",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -901,8 +902,8 @@ public sealed class OsintService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/whois/history",
-            new[] {  },
-            new[] { "domain", "limit" },
+            new string[] {  },
+            new string[] { "domain", "limit" },
             false
         ), parameters, cancellationToken);
 }
@@ -925,8 +926,8 @@ public sealed class PricingService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/prices/bulk",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 
@@ -939,8 +940,8 @@ public sealed class PricingService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/prices/compare",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -953,8 +954,8 @@ public sealed class PricingService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/prices",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -967,8 +968,8 @@ public sealed class PricingService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/prices/registrars",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -981,8 +982,8 @@ public sealed class PricingService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/prices/tld/:tld",
-            new[] { "tld" },
-            new[] {  },
+            new string[] { "tld" },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 }
@@ -1005,8 +1006,8 @@ public sealed class RecipesService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/recipes/brand-launch",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1019,8 +1020,8 @@ public sealed class RecipesService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/recipes/competitor-intel",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1033,8 +1034,8 @@ public sealed class RecipesService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/recipes/defensive-registration",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1047,8 +1048,8 @@ public sealed class RecipesService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/recipes/dns-migration",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1061,8 +1062,8 @@ public sealed class RecipesService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/recipes/domain-finder",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1075,8 +1076,8 @@ public sealed class RecipesService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/recipes/due-diligence",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1089,8 +1090,8 @@ public sealed class RecipesService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/recipes/email-deliverability",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1103,8 +1104,8 @@ public sealed class RecipesService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/recipes/infrastructure-discovery",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1117,8 +1118,8 @@ public sealed class RecipesService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/recipes/phishing-investigation",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1131,8 +1132,8 @@ public sealed class RecipesService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/recipes/portfolio-audit",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1145,8 +1146,8 @@ public sealed class RecipesService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/recipes/portfolio-audit",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 
@@ -1159,8 +1160,8 @@ public sealed class RecipesService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/recipes/threat-assessment",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 }
@@ -1183,8 +1184,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/email/check/bulk",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 
@@ -1197,8 +1198,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/email/check",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1211,8 +1212,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/email/blacklist/download",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1225,8 +1226,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/certificates",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1239,8 +1240,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/reputation",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1253,8 +1254,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/email-auth",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1267,8 +1268,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/email/blacklist",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1281,8 +1282,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/ssl/chain",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1295,8 +1296,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/ssl/expiring",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1309,8 +1310,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/ssl/grade",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1323,8 +1324,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/subdomains",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1337,8 +1338,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/typos",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 
@@ -1351,8 +1352,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/email/verify",
-            new[] {  },
-            new[] { "email", "full" },
+            new string[] {  },
+            new string[] { "email", "full" },
             false
         ), parameters, cancellationToken);
 
@@ -1365,8 +1366,8 @@ public sealed class SecurityService
         ) => _client.RequestAsync(new EndpointDefinition(
             "POST",
             "/v1/email/verify/bulk",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             true
         ), parameters, cancellationToken);
 }
@@ -1389,8 +1390,8 @@ public sealed class SocialService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/social",
-            new[] {  },
-            new[] {  },
+            new string[] {  },
+            new string[] {  },
             false
         ), parameters, cancellationToken);
 }

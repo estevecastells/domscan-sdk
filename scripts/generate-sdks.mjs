@@ -336,6 +336,7 @@ func (c *Client) request(ctx context.Context, endpoint endpointDefinition, param
 \t}
 
 \treq.Header.Set("Accept", "application/json")
+\treq.Header.Set("User-Agent", c.userAgent)
 \treq.Header.Set("X-DomScan-SDK", c.userAgent)
 \tif endpoint.HasBody {
 \t\treq.Header.Set("Content-Type", "application/json")
@@ -486,10 +487,14 @@ ${serviceInit}
     end
 
     def request(endpoint, params = {})
-      request_path = endpoint.fetch("path")
+      endpoint_lookup = lambda do |key|
+        endpoint[key] || endpoint[key.to_sym]
+      end
+
+      request_path = endpoint_lookup.call("path")
       consumed_keys = []
 
-      endpoint.fetch("pathParams").each do |path_param|
+      endpoint_lookup.call("pathParams").each do |path_param|
         value = params[path_param] || params[path_param.to_sym]
         raise ArgumentError, "Missing required path parameter: #{path_param}" if value.nil?
 
@@ -504,8 +509,8 @@ ${serviceInit}
         memo[key.to_s] = value
       end
 
-      query_payload = if endpoint.fetch("hasBody")
-        endpoint.fetch("queryParams").each_with_object({}) do |query_key, memo|
+      query_payload = if endpoint_lookup.call("hasBody")
+        endpoint_lookup.call("queryParams").each_with_object({}) do |query_key, memo|
           memo[query_key] = remaining[query_key] if remaining.key?(query_key)
         end
       else
@@ -519,25 +524,26 @@ ${serviceInit}
         )
       end
 
-      request_class = case endpoint.fetch("method")
+      request_class = case endpoint_lookup.call("method")
       when "GET" then Net::HTTP::Get
       when "POST" then Net::HTTP::Post
       when "PUT" then Net::HTTP::Put
       when "PATCH" then Net::HTTP::Patch
       when "DELETE" then Net::HTTP::Delete
       else
-        raise ArgumentError, "Unsupported HTTP method: #{endpoint.fetch("method")}"
+        raise ArgumentError, "Unsupported HTTP method: #{endpoint_lookup.call("method")}"
       end
 
       request = request_class.new(uri)
       request["Accept"] = "application/json"
+      request["User-Agent"] = @user_agent
       request["X-DomScan-SDK"] = @user_agent
       request["Authorization"] = "Bearer #{@api_key}" if @api_key
       request["X-API-Key"] = @api_key if @api_key
       @headers.each { |key, value| request[key] = value }
 
-      if endpoint.fetch("hasBody")
-        body_payload = remaining.reject { |key, _value| endpoint.fetch("queryParams").include?(key) }
+      if endpoint_lookup.call("hasBody")
+        body_payload = remaining.reject { |key, _value| endpoint_lookup.call("queryParams").include?(key) }
         request["Content-Type"] = "application/json"
         request.body = JSON.generate(body_payload)
       end
@@ -715,6 +721,7 @@ ${serviceAccessors}
 
         $headers = array_merge([
             'Accept: application/json',
+            'User-Agent: ' . $this->userAgent,
             'X-DomScan-SDK: ' . $this->userAgent,
         ], array_map(
             fn ($key, $value) => "{$key}: {$value}",
@@ -751,7 +758,9 @@ ${serviceAccessors}
         $rawResponse = curl_exec($handle);
         if ($rawResponse === false) {
             $message = curl_error($handle);
-            curl_close($handle);
+            if (PHP_VERSION_ID < 80500) {
+                curl_close($handle);
+            }
             throw new RuntimeException($message);
         }
 
@@ -759,7 +768,9 @@ ${serviceAccessors}
         $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
         $headerText = substr($rawResponse, 0, $headerSize);
         $bodyText = substr($rawResponse, $headerSize);
-        curl_close($handle);
+        if (PHP_VERSION_ID < 80500) {
+            curl_close($handle);
+        }
 
         $payload = $this->decodePayload($bodyText);
         if ($status < 400) {
@@ -951,6 +962,7 @@ ${serviceInit}
             .uri(URI.create(urlBuilder.toString()))
             .timeout(timeout)
             .header("Accept", "application/json")
+            .header("User-Agent", userAgent)
             .header("X-DomScan-SDK", userAgent);
 
         if (apiKey != null && !apiKey.isBlank()) {
@@ -1155,8 +1167,8 @@ function renderCSharpClient() {
         ) => _client.RequestAsync(new EndpointDefinition(
             ${JSON.stringify(endpoint.method)},
             ${JSON.stringify(endpoint.path)},
-            new[] { ${endpoint.pathParams.map((param) => JSON.stringify(param)).join(', ')} },
-            new[] { ${endpoint.queryParams.map((param) => JSON.stringify(param)).join(', ')} },
+            new string[] { ${endpoint.pathParams.map((param) => JSON.stringify(param)).join(', ')} },
+            new string[] { ${endpoint.queryParams.map((param) => JSON.stringify(param)).join(', ')} },
             ${endpoint.hasBody ? 'true' : 'false'}
         ), parameters, cancellationToken);`).join('\n\n');
 
@@ -1280,6 +1292,7 @@ ${serviceInit}
 
         using var request = new HttpRequestMessage(new HttpMethod(endpoint.Method), urlBuilder.ToString());
         request.Headers.Accept.ParseAdd("application/json");
+        request.Headers.TryAddWithoutValidation("User-Agent", _userAgent);
         request.Headers.Add("X-DomScan-SDK", _userAgent);
 
         if (!string.IsNullOrWhiteSpace(_apiKey))
@@ -1456,6 +1469,7 @@ ${kotlinQueryJoinLine}
             .uri(URI.create(url))
             .timeout(timeout)
             .header("Accept", "application/json")
+            .header("User-Agent", userAgent)
             .header("X-DomScan-SDK", userAgent)
 
         if (!apiKey.isNullOrBlank()) {
@@ -1627,6 +1641,7 @@ ${serviceProps}
         request.httpMethod = endpoint.method
         request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(userAgent, forHTTPHeaderField: "X-DomScan-SDK")
         if let apiKey, !apiKey.isEmpty {
             request.setValue("Bearer \\(apiKey)", forHTTPHeaderField: "Authorization")
@@ -1717,7 +1732,7 @@ ${methodLines}
         ${namespaceClassNames[namespace]}Service { client: Arc::clone(&self.inner) }
     }`).join('\n\n');
 
-  return `use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
+  return `use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
 use serde_json::{Map, Value};
 use std::env;
 use std::sync::Arc;
@@ -1800,7 +1815,8 @@ impl InnerClient {
                     details: None,
                     request_id: None,
                 })?;
-            let encoded = urlencoding::encode(&serialize_query_value(&value));
+            let serialized = serialize_query_value(&value);
+            let encoded = urlencoding::encode(&serialized);
             request_path = request_path.replace(&format!(":{}", path_param), encoded.as_ref());
         }
 
@@ -1825,6 +1841,7 @@ impl InnerClient {
                 format!("{}{}", self.base_url, request_path),
             )
             .header(ACCEPT, "application/json")
+            .header(USER_AGENT, self.user_agent.clone())
             .header("X-DomScan-SDK", self.user_agent.clone());
 
         if let Some(api_key) = &self.api_key {

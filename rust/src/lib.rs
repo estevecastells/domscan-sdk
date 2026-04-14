@@ -1,4 +1,4 @@
-use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
+use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
 use serde_json::{Map, Value};
 use std::env;
 use std::sync::Arc;
@@ -119,7 +119,8 @@ impl InnerClient {
                     details: None,
                     request_id: None,
                 })?;
-            let encoded = urlencoding::encode(&serialize_query_value(&value));
+            let serialized = serialize_query_value(&value);
+            let encoded = urlencoding::encode(&serialized);
             request_path = request_path.replace(&format!(":{}", path_param), encoded.as_ref());
         }
 
@@ -144,6 +145,7 @@ impl InnerClient {
                 format!("{}{}", self.base_url, request_path),
             )
             .header(ACCEPT, "application/json")
+            .header(USER_AGENT, self.user_agent.clone())
             .header("X-DomScan-SDK", self.user_agent.clone());
 
         if let Some(api_key) = &self.api_key {

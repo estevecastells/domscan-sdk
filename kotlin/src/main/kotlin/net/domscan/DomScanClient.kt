@@ -80,6 +80,7 @@ class DomScanClient(
             .uri(URI.create(url))
             .timeout(timeout)
             .header("Accept", "application/json")
+            .header("User-Agent", userAgent)
             .header("X-DomScan-SDK", userAgent)
 
         if (!apiKey.isNullOrBlank()) {

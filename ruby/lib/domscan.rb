@@ -46,10 +46,14 @@ module DomScan
     end
 
     def request(endpoint, params = {})
-      request_path = endpoint.fetch("path")
+      endpoint_lookup = lambda do |key|
+        endpoint[key] || endpoint[key.to_sym]
+      end
+
+      request_path = endpoint_lookup.call("path")
       consumed_keys = []
 
-      endpoint.fetch("pathParams").each do |path_param|
+      endpoint_lookup.call("pathParams").each do |path_param|
         value = params[path_param] || params[path_param.to_sym]
         raise ArgumentError, "Missing required path parameter: #{path_param}" if value.nil?
 
@@ -64,8 +68,8 @@ module DomScan
         memo[key.to_s] = value
       end
 
-      query_payload = if endpoint.fetch("hasBody")
-        endpoint.fetch("queryParams").each_with_object({}) do |query_key, memo|
+      query_payload = if endpoint_lookup.call("hasBody")
+        endpoint_lookup.call("queryParams").each_with_object({}) do |query_key, memo|
           memo[query_key] = remaining[query_key] if remaining.key?(query_key)
         end
       else
@@ -79,25 +83,26 @@ module DomScan
         )
       end
 
-      request_class = case endpoint.fetch("method")
+      request_class = case endpoint_lookup.call("method")
       when "GET" then Net::HTTP::Get
       when "POST" then Net::HTTP::Post
       when "PUT" then Net::HTTP::Put
       when "PATCH" then Net::HTTP::Patch
       when "DELETE" then Net::HTTP::Delete
       else
-        raise ArgumentError, "Unsupported HTTP method: #{endpoint.fetch("method")}"
+        raise ArgumentError, "Unsupported HTTP method: #{endpoint_lookup.call("method")}"
       end
 
       request = request_class.new(uri)
       request["Accept"] = "application/json"
+      request["User-Agent"] = @user_agent
       request["X-DomScan-SDK"] = @user_agent
       request["Authorization"] = "Bearer #{@api_key}" if @api_key
       request["X-API-Key"] = @api_key if @api_key
       @headers.each { |key, value| request[key] = value }
 
-      if endpoint.fetch("hasBody")
-        body_payload = remaining.reject { |key, _value| endpoint.fetch("queryParams").include?(key) }
+      if endpoint_lookup.call("hasBody")
+        body_payload = remaining.reject { |key, _value| endpoint_lookup.call("queryParams").include?(key) }
         request["Content-Type"] = "application/json"
         request.body = JSON.generate(body_payload)
       end

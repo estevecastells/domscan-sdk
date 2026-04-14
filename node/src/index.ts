@@ -1,4 +1,4 @@
-import { endpointManifest, type EndpointManifest } from './generated';
+import { endpointManifest, type EndpointManifest } from './generated.js';
 
 export interface DomScanClientOptions {
   apiKey?: string;
@@ -237,6 +237,7 @@ export class DomScan {
 
     const headers = new Headers(this.defaultHeaders);
     headers.set('accept', 'application/json');
+    headers.set('user-agent', this.userAgent);
     headers.set('x-domscan-sdk', this.userAgent);
 
     if (this.apiKey) {

@@ -193,6 +193,7 @@ func (c *Client) request(ctx context.Context, endpoint endpointDefinition, param
 	}
 
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("X-DomScan-SDK", c.userAgent)
 	if endpoint.HasBody {
 		req.Header.Set("Content-Type", "application/json")

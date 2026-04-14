@@ -137,6 +137,7 @@ class DomScan:
 
     headers = {
       "Accept": "application/json",
+      "User-Agent": self.user_agent,
       "X-DomScan-SDK": self.user_agent,
       **self.default_headers,
     }

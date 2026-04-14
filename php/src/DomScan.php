@@ -160,6 +160,7 @@ final class Client
 
         $headers = array_merge([
             'Accept: application/json',
+            'User-Agent: ' . $this->userAgent,
             'X-DomScan-SDK: ' . $this->userAgent,
         ], array_map(
             fn ($key, $value) => "{$key}: {$value}",
@@ -196,7 +197,9 @@ final class Client
         $rawResponse = curl_exec($handle);
         if ($rawResponse === false) {
             $message = curl_error($handle);
-            curl_close($handle);
+            if (PHP_VERSION_ID < 80500) {
+                curl_close($handle);
+            }
             throw new RuntimeException($message);
         }
 
@@ -204,7 +207,9 @@ final class Client
         $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
         $headerText = substr($rawResponse, 0, $headerSize);
         $bodyText = substr($rawResponse, $headerSize);
-        curl_close($handle);
+        if (PHP_VERSION_ID < 80500) {
+            curl_close($handle);
+        }
 
         $payload = $this->decodePayload($bodyText);
         if ($status < 400) {
