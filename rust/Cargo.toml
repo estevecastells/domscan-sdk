@@ -1,0 +1,12 @@
+[package]
+name = "domscan-sdk"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Official Rust SDK for the DomScan API"
+
+[dependencies]
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+serde_json = "1"
+urlencoding = "2"
+tokio = { version = "1", features = ["rt", "macros"] }

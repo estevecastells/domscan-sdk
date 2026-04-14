@@ -3,3 +3,11 @@ dist/
 __pycache__/
 *.pyc
 .DS_Store
+.build/
+.gradle/
+.swiftpm/
+bin/
+build/
+obj/
+target/
+*.class

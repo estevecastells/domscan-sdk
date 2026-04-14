@@ -1,0 +1,12 @@
+{
+  "name": "estevecastells/domscan-sdk",
+  "description": "Official PHP SDK for the DomScan API",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "files": ["src/DomScan.php"]
+  },
+  "require": {
+    "php": "^8.2"
+  }
+}
