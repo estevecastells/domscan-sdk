@@ -30,7 +30,7 @@ class DomScanClient(
     baseUrl: String = "https://domscan.net",
     private val timeout: Duration = Duration.ofSeconds(10),
     private val headers: Map<String, String> = emptyMap(),
-    private val userAgent: String = "domscan-kotlin/0.1.0",
+    private val userAgent: String = "domscan-kotlin/0.2.0",
     private val httpClient: HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build()
 ) {
     private val apiKey: String? = apiKey?.takeUnless { it.isBlank() }
@@ -164,7 +164,7 @@ class AvailabilityService(private val client: DomScanClient) {
         )
 
     /**
-     * Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results.
+     * Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results. Primary format: name + tlds. Single-domain shortcut: domain=example.com.
      */
     fun checkDomainAvailability(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -172,7 +172,7 @@ class AvailabilityService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/status",
                 pathParams = listOf(),
-                queryParams = listOf("name", "tlds", "prefer_cache"),
+                queryParams = listOf("name", "tlds", "domain", "prefer_cache"),
                 hasBody = false
             ),
             params
@@ -226,6 +226,21 @@ class DnsService(private val client: DomScanClient) {
         )
 
     /**
+     * Compare answers from the configured public recursive DNS resolvers for up to 10 domains. Results preserve input order and report per-domain errors.
+     */
+    fun bulkDnsPropagation(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/dns/propagation/bulk",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
      * Check a specific DKIM selector for a domain and validate the public key.
      */
     fun checkDkim(params: Map<String, Any?> = emptyMap()): String =
@@ -234,7 +249,7 @@ class DnsService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/tools/dkim/check",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "selector"),
                 hasBody = false
             ),
             params
@@ -249,7 +264,7 @@ class DnsService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/tools/dkim/discover",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain"),
                 hasBody = false
             ),
             params
@@ -271,7 +286,7 @@ class DnsService(private val client: DomScanClient) {
         )
 
     /**
-     * Get all DNS record types for a domain in a single call.
+     * Get all major DNS record types for a domain in a single call with IPv6 parity, TXT classification, wildcard probe, and warning signals.
      */
     fun getAllDnsRecords(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -279,29 +294,14 @@ class DnsService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/dns/all",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "wildcard_probe"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Compare DNS records between two dates to see what changed.
-     */
-    fun getDnsDiff(params: Map<String, Any?> = emptyMap()): String =
-        client.request(
-            EndpointDefinition(
-                method = "GET",
-                path = "/v1/dns/diff",
-                pathParams = listOf(),
-                queryParams = listOf(),
-                hasBody = false
-            ),
-            params
-        )
-
-    /**
-     * Track DNS record changes over time. Data accumulates from API lookups.
+     * Review day-level DNS record values observed by successful DomScan DNS lookups. This lookup-driven observation log can miss changes between lookups and does not include external passive DNS sources.
      */
     fun getDnsHistory(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -309,14 +309,14 @@ class DnsService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/dns/history",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "type", "from", "to", "limit"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Check DNS propagation across multiple global DNS servers.
+     * Compare DNS answers from DomScan's configured Cloudflare and Google public recursive DoH providers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
      */
     fun getDnsPropagation(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -324,14 +324,14 @@ class DnsService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/dns/propagation",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "type", "expected"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically.
+     * Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically with TXT classification and additive warning signals.
      */
     fun getDnsRecords(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -339,14 +339,14 @@ class DnsService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/dns",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "type"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, and CAA records.
+     * Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, CAA, MTA-STS, TLS-RPT, resolver latency, and AXFR exposure.
      */
     fun getDnsSecurity(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -354,14 +354,14 @@ class DnsService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/dns/security",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Get list of global DNS servers used for propagation checks.
+     * List the public recursive DoH providers used for resolver comparison. These are global anycast services, not geographic probes.
      */
     fun getDnsServers(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -423,6 +423,36 @@ class DomainService(private val client: DomScanClient) {
         )
 
     /**
+     * Get normalized RDAP registration data: registrar, dates, nameservers, DNSSEC status.
+     */
+    fun bulkGetDomainProfile(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/profile/bulk",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * Compare up to 50 candidate brand names and return ranked scores.
+     */
+    fun compareBrandNames(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/score/compare",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
      * Compare two domains side-by-side across multiple metrics and attributes.
      */
     fun compareDomains(params: Map<String, Any?> = emptyMap()): String =
@@ -431,14 +461,14 @@ class DomainService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/compare",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domains"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Comprehensive health checks: DNS, SSL, email deliverability, security headers, and more.
+     * Comprehensive health checks with DNS, SSL, email, proxy-enriched TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
      */
     fun getDomainHealth(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -446,14 +476,14 @@ class DomainService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/health",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "details"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Comprehensive domain intelligence in one call: DNS, WHOIS, health, and reputation data aggregated into a single response.
+     * Aggregate DNS, RDAP registration, health, reputation, and popularity observations in one response, with null unknowns and per-component freshness.
      */
     fun getDomainOverview(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -461,7 +491,37 @@ class DomainService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/overview",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Get the current research-grade Tranco rank and bucket for a domain, with explicit ranked, unranked, and unknown states, source date, cache state, and optional lookup-driven history.
+     */
+    fun getDomainPopularity(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/popularity",
+                pathParams = listOf(),
+                queryParams = listOf("domain", "include_history", "history_limit"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Read prior Tranco observations recorded by DomScan lookups. This is a lookup-driven history, not a complete daily rank series.
+     */
+    fun getDomainPopularityHistory(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/popularity/history",
+                pathParams = listOf(),
+                queryParams = listOf("domain", "limit"),
                 hasBody = false
             ),
             params
@@ -476,7 +536,7 @@ class DomainService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/profile",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain"),
                 hasBody = false
             ),
             params
@@ -491,7 +551,7 @@ class DomainService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/score",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("name", "domain"),
                 hasBody = false
             ),
             params
@@ -506,7 +566,7 @@ class DomainService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/value",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain"),
                 hasBody = false
             ),
             params
@@ -520,6 +580,21 @@ class DomainService(private val client: DomScanClient) {
             EndpointDefinition(
                 method = "GET",
                 path = "/v1/health/quick",
+                pathParams = listOf(),
+                queryParams = listOf("domain"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Returns scoring dimensions, grade scale, and related scoring endpoints.
+     */
+    fun getScoreInfo(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/score/info",
                 pathParams = listOf(),
                 queryParams = listOf(),
                 hasBody = false
@@ -551,7 +626,7 @@ class DomainService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/tlds",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("type"),
                 hasBody = false
             ),
             params
@@ -566,7 +641,7 @@ class DomainService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/suggest",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("keywords", "tlds", "style", "industry", "language", "limit", "check"),
                 hasBody = false
             ),
             params
@@ -575,7 +650,82 @@ class DomainService(private val client: DomScanClient) {
 
 class IntelligenceService(private val client: DomScanClient) {
     /**
-     * Classify websites into 350+ IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.
+     * Detect hosting, CDN, WAF, DNS, and email infrastructure for up to 10 domains. Results preserve input order and include per-domain errors.
+     */
+    fun bulkGetHosting(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/hosting/bulk",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * Extract normalized URL intelligence for up to 10 public URLs. Results preserve input order and include per-item errors.
+     */
+    fun bulkGetUrlIntelligence(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/url-intelligence/bulk",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * Extract website identity assets for up to 10 domains. Results preserve input order and include per-item errors.
+     */
+    fun bulkGetWebsiteIdentityAssets(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/identity-assets/bulk",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * Resolve public identities for up to 10 company domains. Results preserve input order and include per-item errors.
+     */
+    fun bulkResolveInternetIdentity(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/identity-resolution/bulk",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * Cancel unstarted technology scan work and settle item-level refunds. An already running browser scan may finish, but its result is discarded.
+     */
+    fun cancelTechScanJob(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "DELETE",
+                path = "/v1/tech/jobs/:job_id",
+                pathParams = listOf("job_id"),
+                queryParams = listOf(),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Classify websites into DomScan IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.
      */
     fun categorizeWebsite(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -583,7 +733,7 @@ class IntelligenceService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/categorize",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("url", "domain", "skip_cache", "min_confidence"),
                 hasBody = false
             ),
             params
@@ -605,6 +755,36 @@ class IntelligenceService(private val client: DomScanClient) {
         )
 
     /**
+     * Create a durable asynchronous technology scan job for up to 100 public targets. Supports fast, JavaScript-rendered, and bounded same-origin deep modes with item-level billing and refunds.
+     */
+    fun createTechScanJob(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/tech/jobs",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * List the DomScan IAB-inspired category IDs, response category names, taxonomy names, and subcategories returned by the Website Categorization API.
+     */
+    fun getCategorizationTaxonomy(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/categorize/taxonomy",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
      * Extract company information from a domain. Get name, industry, and contact details.
      */
     fun getCompany(params: Map<String, Any?> = emptyMap()): String =
@@ -613,7 +793,7 @@ class IntelligenceService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/company",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain"),
                 hasBody = false
             ),
             params
@@ -628,7 +808,7 @@ class IntelligenceService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/similarity",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain1", "domain2"),
                 hasBody = false
             ),
             params
@@ -643,7 +823,7 @@ class IntelligenceService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/hosting",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain"),
                 hasBody = false
             ),
             params
@@ -673,6 +853,21 @@ class IntelligenceService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/redirects",
                 pathParams = listOf(),
+                queryParams = listOf("url", "domain"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Get owner-scoped progress, item counts, billing settlement, and expiration details for a technology scan job.
+     */
+    fun getTechScanJob(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/tech/jobs/:job_id",
+                pathParams = listOf("job_id"),
                 queryParams = listOf(),
                 hasBody = false
             ),
@@ -680,7 +875,22 @@ class IntelligenceService(private val client: DomScanClient) {
         )
 
     /**
-     * Detect website technologies: CDN, CMS, frameworks, analytics, and more.
+     * Get ordered, signed-cursor-paginated results for a technology scan job. Full results expire after 48 hours and operational job records expire after seven days.
+     */
+    fun getTechScanJobResults(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/tech/jobs/:job_id/results",
+                pathParams = listOf("job_id"),
+                queryParams = listOf("cursor", "limit"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Detect 500+ verified website technologies across 80+ categories using bounded HTTP signals, rendered JavaScript globals, observed network URLs, and same-origin multi-page analysis. Returns confidence, sanitized evidence scoped to each page, caveats, provenance, explicit limits, and complete or partial coverage.
      */
     fun getTechStack(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -688,7 +898,82 @@ class IntelligenceService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/tech",
                 pathParams = listOf(),
+                queryParams = listOf("url", "domain", "mode", "max_pages", "skip_cache"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Extract normalized metadata, link-preview assets, Open Graph and Twitter Card fields, canonical URL, robots directives, structured-data types, security headers, links, contacts, and declared profiles from a public URL.
+     */
+    fun getUrlIntelligence(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/url-intelligence",
+                pathParams = listOf(),
+                queryParams = listOf("url"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Discover a website organization name, logo candidates, favicons, touch icons, preview image, theme color, manifest, and declared social profiles from public website metadata.
+     */
+    fun getWebsiteIdentityAssets(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/identity-assets",
+                pathParams = listOf(),
+                queryParams = listOf("domain"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * List recent short-lived technology scan jobs for the authenticated account.
+     */
+    fun listTechScanJobs(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/tech/jobs",
+                pathParams = listOf(),
+                queryParams = listOf("limit", "cursor"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Run up to 10 ordered fast technology scans in one request. Each valid target is billed independently, and failed upstream scans are refunded independently.
+     */
+    fun postTechStackBulk(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/tech/bulk",
+                pathParams = listOf(),
                 queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * Resolve a company domain into public social, developer, creator, federated, and app-store identities explicitly declared by its website.
+     */
+    fun resolveInternetIdentity(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/identity-resolution",
+                pathParams = listOf(),
+                queryParams = listOf("domain"),
                 hasBody = false
             ),
             params
@@ -696,6 +981,96 @@ class IntelligenceService(private val client: DomScanClient) {
 }
 
 class MetaService(private val client: DomScanClient) {
+    /**
+     * Cancel unstarted batch items and refund their item charges. An item already being processed may finish.
+     */
+    fun cancelApiBatch(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "DELETE",
+                path = "/v1/batches/:job_id",
+                pathParams = listOf("job_id"),
+                queryParams = listOf(),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and failed items are refunded independently.
+     */
+    fun createApiBatch(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/batches",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * Download the full disposable email domain dataset in various formats.
+     */
+    fun downloadEmailBlacklist(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/email/blacklist/download",
+                pathParams = listOf(),
+                queryParams = listOf("format"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Get progress, item counts, billing settlement, webhook delivery state, and expiration for an account API batch.
+     */
+    fun getApiBatch(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/batches/:job_id",
+                pathParams = listOf("job_id"),
+                queryParams = listOf(),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Get ordered JSON results or download all items as RFC 4180 CSV for an account API batch. Results and job metadata expire 24 hours after creation.
+     */
+    fun getApiBatchResults(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/batches/:job_id/results",
+                pathParams = listOf("job_id"),
+                queryParams = listOf("after", "limit", "format"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Browse the disposable email domain dataset as a paginated data feed.
+     */
+    fun getEmailBlacklistInfo(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/email/blacklist",
+                pathParams = listOf(),
+                queryParams = listOf("limit", "offset", "format"),
+                hasBody = false
+            ),
+            params
+        )
+
     /**
      * Get credit costs per endpoint and API pricing information.
      */
@@ -710,9 +1085,39 @@ class MetaService(private val client: DomScanClient) {
             ),
             params
         )
+
+    /**
+     * List unexpired asynchronous API batches for the active customer account.
+     */
+    fun listApiBatches(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/batches",
+                pathParams = listOf(),
+                queryParams = listOf("limit"),
+                hasBody = false
+            ),
+            params
+        )
 }
 
 class OsintService(private val client: DomScanClient) {
+    /**
+     * Query raw RDAP data for up to 10 domains, IP addresses, CIDR ranges, or autonomous system numbers. One query type applies to the whole batch.
+     */
+    fun bulkGetRdap(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/rdap/bulk",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
     /**
      * Get WHOIS data for multiple domains at once.
      */
@@ -724,36 +1129,6 @@ class OsintService(private val client: DomScanClient) {
                 pathParams = listOf(),
                 queryParams = listOf(),
                 hasBody = true
-            ),
-            params
-        )
-
-    /**
-     * Find domains that use a specific nameserver.
-     */
-    fun getDnsReverseNs(params: Map<String, Any?> = emptyMap()): String =
-        client.request(
-            EndpointDefinition(
-                method = "GET",
-                path = "/v1/dns/reverse/ns",
-                pathParams = listOf(),
-                queryParams = listOf(),
-                hasBody = false
-            ),
-            params
-        )
-
-    /**
-     * Map domain relationships through shared infrastructure and registrant data.
-     */
-    fun getDomainGraph(params: Map<String, Any?> = emptyMap()): String =
-        client.request(
-            EndpointDefinition(
-                method = "GET",
-                path = "/v1/graph",
-                pathParams = listOf(),
-                queryParams = listOf(),
-                hasBody = false
             ),
             params
         )
@@ -774,7 +1149,7 @@ class OsintService(private val client: DomScanClient) {
         )
 
     /**
-     * Get IP addresses with geolocation, ASN, and hosting provider information.
+     * Get IP or resolved-domain geolocation and ASN data, provider security flags, coarse hosting classification, and FCrDNS. PTR-based signals are derived from the IP, never the caller hostname.
      */
     fun getIpInfo(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -782,7 +1157,7 @@ class OsintService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/ip",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("ip", "domain"),
                 hasBody = false
             ),
             params
@@ -797,20 +1172,20 @@ class OsintService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/mac",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("mac"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Find all domains hosted on a specific IP address.
+     * Returns parameter help and an example response for the MAC address lookup endpoint.
      */
-    fun getReverseIp(params: Map<String, Any?> = emptyMap()): String =
+    fun getMacLookupInfo(params: Map<String, Any?> = emptyMap()): String =
         client.request(
             EndpointDefinition(
                 method = "GET",
-                path = "/v1/reverse/ip",
+                path = "/v1/mac/info",
                 pathParams = listOf(),
                 queryParams = listOf(),
                 hasBody = false
@@ -819,15 +1194,15 @@ class OsintService(private val client: DomScanClient) {
         )
 
     /**
-     * Find all domains using a specific mail server for email infrastructure mapping.
+     * Get raw RDAP response for a domain, IP address, or autonomous system number.
      */
-    fun getReverseMx(params: Map<String, Any?> = emptyMap()): String =
+    fun getRdap(params: Map<String, Any?> = emptyMap()): String =
         client.request(
             EndpointDefinition(
                 method = "GET",
-                path = "/v1/reverse/mx",
+                path = "/v1/rdap",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("query", "type", "domain"),
                 hasBody = false
             ),
             params
@@ -842,14 +1217,14 @@ class OsintService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/whois",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Track WHOIS record changes over time. Shows registrar transfers, expiry extensions, nameserver changes, and privacy toggles. Data accumulates from API lookups.
+     * Query the DomScan WHOIS observation log. A qualifying fresh, successful RDAP-backed GET /v1/whois or /v2/whois lookup can record at most one normalized snapshot per domain per UTC day. Cached responses, bulk lookups, history reads, and traditional WHOIS-only fallbacks do not add snapshots. This is not a global historical WHOIS archive and does not provide registrant identity or contact history.
      */
     fun getWhoisHistory(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -866,7 +1241,7 @@ class OsintService(private val client: DomScanClient) {
 
 class PricingService(private val client: DomScanClient) {
     /**
-     * Get pricing for multiple domains at once.
+     * Read daily standard-price rows for multiple TLDs. Each unique TLD and selected registrar pair costs one credit.
      */
     fun bulkPricing(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -881,7 +1256,7 @@ class PricingService(private val client: DomScanClient) {
         )
 
     /**
-     * Compare domain prices across multiple registrars.
+     * Compare daily standard-TLD rows and separate credential-backed exact-domain quotes without inferring missing operation prices.
      */
     fun comparePrices(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -889,14 +1264,14 @@ class PricingService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/prices/compare",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "registrars", "skip_cache"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Get domain registration and renewal prices across registrars.
+     * Read daily standard-TLD price snapshots from verified official registrar sources. One credit is charged per unique TLD and selected registrar pair.
      */
     fun getPrices(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -904,14 +1279,14 @@ class PricingService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/prices",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("tlds", "registrars", "skip_cache"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Get list of supported registrars with pricing data.
+     * List registrar metadata and identify which registrars currently have integrated DomScan pricing sources.
      */
     fun getRegistrars(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -926,7 +1301,7 @@ class PricingService(private val client: DomScanClient) {
         )
 
     /**
-     * Get pricing for a specific TLD across registrars.
+     * Read daily standard-price rows for one TLD, with registrar filters, provenance, freshness, and pair-based billing.
      */
     fun getTldPricing(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -934,7 +1309,7 @@ class PricingService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/prices/tld/:tld",
                 pathParams = listOf("tld"),
-                queryParams = listOf(),
+                queryParams = listOf("registrars", "skip_cache"),
                 hasBody = false
             ),
             params
@@ -943,7 +1318,7 @@ class PricingService(private val client: DomScanClient) {
 
 class RecipesService(private val client: DomScanClient) {
     /**
-     * Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 6 credits.
+     * Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 4 credits.
      */
     fun recipeBrandLaunch(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -951,14 +1326,14 @@ class RecipesService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/recipes/brand-launch",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "brand_name", "platforms"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 8 credits.
+     * Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 5 credits.
      */
     fun recipeCompetitorIntel(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -966,14 +1341,14 @@ class RecipesService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/recipes/competitor-intel",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "discover_subdomains", "analyze_email"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Brand protection through strategic domain acquisition recommendations. Saves 10 credits.
+     * Brand protection through strategic domain acquisition recommendations. Saves 8 credits.
      */
     fun recipeDefensiveRegistration(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -981,14 +1356,14 @@ class RecipesService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/recipes/defensive-registration",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("brand", "owned_domains", "priority_tlds", "include_typos", "budget"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Pre-migration checklist and current DNS configuration snapshot. Saves 6 credits.
+     * Pre-migration checklist and current DNS configuration snapshot. Saves 5 credits.
      */
     fun recipeDnsMigration(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -996,14 +1371,14 @@ class RecipesService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/recipes/dns-migration",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "target_nameservers", "critical_records"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * AI-powered domain discovery with filtering and availability checking. Saves 15 credits.
+     * AI-powered domain discovery with filtering and availability checking. Saves 13 credits.
      */
     fun recipeDomainFinder(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -1011,14 +1386,14 @@ class RecipesService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/recipes/domain-finder",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("keywords", "tlds", "style", "max_length", "language", "limit"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 8 credits vs individual calls.
+     * Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 6 credits vs individual calls.
      */
     fun recipeDueDiligence(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -1026,14 +1401,14 @@ class RecipesService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/recipes/due-diligence",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "include_competitors"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 7 credits.
+     * Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 5 credits.
      */
     fun recipeEmailDeliverability(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -1041,14 +1416,14 @@ class RecipesService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/recipes/email-deliverability",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "dkim_selectors", "check_blacklists"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Complete infrastructure mapping and attack surface analysis. Saves 13 credits.
+     * Complete infrastructure mapping and attack surface analysis. Saves 10 credits.
      */
     fun recipeInfrastructureDiscovery(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -1056,14 +1431,14 @@ class RecipesService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/recipes/infrastructure-discovery",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "depth", "include_historical"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Evidence collection and analysis for suspected phishing domains. Saves 12 credits.
+     * Evidence collection and analysis for suspected phishing domains. Saves 10 credits.
      */
     fun recipePhishingInvestigation(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -1071,14 +1446,14 @@ class RecipesService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/recipes/phishing-investigation",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("suspicious_domain", "legitimate_domain", "collect_evidence"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 280 credits.
+     * Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 275 credits.
      */
     fun recipePortfolioAudit(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -1086,7 +1461,7 @@ class RecipesService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/recipes/portfolio-audit",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domains", "include_valuation", "include_health", "alert_expiring_days"),
                 hasBody = false
             ),
             params
@@ -1108,7 +1483,7 @@ class RecipesService(private val client: DomScanClient) {
         )
 
     /**
-     * Comprehensive typosquatting and brand threat analysis for security teams. Saves 25 credits.
+     * Comprehensive typosquatting and brand threat analysis for security teams. Saves 22 credits.
      */
     fun recipeThreatAssessment(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -1116,7 +1491,7 @@ class RecipesService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/recipes/threat-assessment",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "max_threats", "include_evidence"),
                 hasBody = false
             ),
             params
@@ -1140,6 +1515,51 @@ class SecurityService(private val client: DomScanClient) {
         )
 
     /**
+     * Search Certificate Transparency data for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.
+     */
+    fun bulkGetCertificates(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/certificates/bulk",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * Check SPF, DKIM, DMARC, MTA-STS, TLS-RPT, and recursive SPF behavior for up to 10 domains. Results preserve input order and include per-domain errors.
+     */
+    fun bulkGetEmailAuth(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/email-auth/bulk",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * Run the passive subdomain evidence pipeline for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.
+     */
+    fun bulkGetSubdomains(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/subdomains/bulk",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
      * Check if an email domain is on disposable/temporary email blacklists.
      */
     fun checkEmailBlacklist(params: Map<String, Any?> = emptyMap()): String =
@@ -1148,22 +1568,7 @@ class SecurityService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/email/check",
                 pathParams = listOf(),
-                queryParams = listOf(),
-                hasBody = false
-            ),
-            params
-        )
-
-    /**
-     * Download the full email blacklist database in various formats.
-     */
-    fun downloadEmailBlacklist(params: Map<String, Any?> = emptyMap()): String =
-        client.request(
-            EndpointDefinition(
-                method = "GET",
-                path = "/v1/email/blacklist/download",
-                pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("email", "checks"),
                 hasBody = false
             ),
             params
@@ -1178,14 +1583,14 @@ class SecurityService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/certificates",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "include_subdomains", "include_expired", "limit", "cursor"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Check domain reputation across security feeds, blacklists, and threat intelligence.
+     * Check domain reputation across DNS, TLS, blacklist, parking, web presence, and email signals with score confidence metadata.
      */
     fun getDomainReputation(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -1193,14 +1598,14 @@ class SecurityService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/reputation",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Check DMARC, SPF, and DKIM configurations for email security auditing.
+     * Check DMARC, SPF, DKIM, MTA-STS, TLS-RPT, and recursive SPF behavior for email security auditing.
      */
     fun getEmailAuth(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -1208,22 +1613,37 @@ class SecurityService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/email-auth",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "selectors"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Get information about the email blacklist database.
+     * Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and proxy-backed mail security checks.
      */
-    fun getEmailBlacklistInfo(params: Map<String, Any?> = emptyMap()): String =
+    fun getEmailCompliance(params: Map<String, Any?> = emptyMap()): String =
         client.request(
             EndpointDefinition(
                 method = "GET",
-                path = "/v1/email/blacklist",
+                path = "/v1/email/compliance",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "selectors", "providers"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Run a comprehensive live SSL/TLS audit for a domain, aggregating certificate, chain, revocation, HSTS, HTTP version, and TLS posture details.
+     */
+    fun getSslAudit(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/ssl/audit",
+                pathParams = listOf(),
+                queryParams = listOf("domain"),
                 hasBody = false
             ),
             params
@@ -1238,7 +1658,22 @@ class SecurityService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/ssl/chain",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Run a premium cached deep SSL/TLS scan for a domain. Returns a fresh cached result immediately when available, or starts a long-running scan and returns a signed polling token.
+     */
+    fun getSslDeepScan(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/ssl/deep-scan",
+                pathParams = listOf(),
+                queryParams = listOf("domain", "refresh", "profile"),
                 hasBody = false
             ),
             params
@@ -1253,14 +1688,14 @@ class SecurityService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/ssl/expiring",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "threshold_days"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring.
+     * Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring plus HSTS preload audit metadata.
      */
     fun getSslGrade(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -1268,14 +1703,14 @@ class SecurityService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/ssl/grade",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Discover subdomains using Certificate Transparency and DNS enumeration.
+     * Return best-effort public hostname evidence from a sequential passive pipeline. Discovery tries crt.sh first, then can fall back to HackerTarget, ThreatMiner, the Wayback Machine, and CertSpotter. Results include their evidence source. DomScan does not brute-force names or crawl the target site, so coverage is incomplete.
      */
     fun getSubdomains(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -1283,7 +1718,7 @@ class SecurityService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/subdomains",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "sources", "verify", "include_wildcards", "limit", "prefer_cache"),
                 hasBody = false
             ),
             params
@@ -1298,14 +1733,59 @@ class SecurityService(private val client: DomScanClient) {
                 method = "GET",
                 path = "/v1/typos",
                 pathParams = listOf(),
-                queryParams = listOf(),
+                queryParams = listOf("domain", "check_registered", "limit", "include_tld_swap"),
                 hasBody = false
             ),
             params
         )
 
     /**
-     * Verify email deliverability with syntax validation, MX lookup, disposable detection, and optional SMTP mailbox verification. Basic check costs 1 credit; full SMTP check costs 5 credits.
+     * Find exposed software versions and deterministic web security misconfigurations using verified technology evidence, exact OSV package matching, CISA Known Exploited Vulnerabilities, FIRST EPSS, and isolated Edge Relay rendering. Results separate affected versions from configuration findings and preserve unknown coverage.
+     */
+    fun getVulnerabilities(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/vulnerabilities",
+                pathParams = listOf(),
+                queryParams = listOf("url", "domain", "mode"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Validate, normalize, and enrich international phone numbers with country-specific coverage levels, offline numbering-plan, location, time-zone, original prefix-carrier, portability-support, dialing, short-number, service, and official allocation metadata. US NANPA and Canadian CNA/CNAC snapshots add NPA-NXX central office code status and original code-holder evidence. DomScan uses its own Edge Relay and free local datasets without paid or per-number third-party lookups. Results never claim current carrier, reachability, subscriber identity, or individual-number assignment.
+     */
+    fun validatePhoneNumber(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/phone/validate",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and uses one DomScan Edge Relay batch with zero paid or per-number third-party lookups.
+     */
+    fun validatePhoneNumbersBulk(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/phone/validate/bulk",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * Verify email deliverability with syntax validation, MX/null MX lookup, reserved/test-domain detection, provider typo suggestions, MX provider fingerprinting, SPF/DMARC/MTA-STS/TLS-RPT evidence, local-part/domain intelligence, toxic/do-not-mail signals, confidence scoring, and industry-style deliverability status. Mailbox-level SMTP probing is deprecated and is not charged or performed.
      */
     fun verifyEmail(params: Map<String, Any?> = emptyMap()): String =
         client.request(
@@ -1337,13 +1817,43 @@ class SecurityService(private val client: DomScanClient) {
 
 class SocialService(private val client: DomScanClient) {
     /**
-     * Check username availability across social platforms like GitHub, Reddit, and more.
+     * Check up to 10 social handles or resource identifiers in one request at the normal 2-credit rate per valid item, with no bulk discount. Invalid items return per-item errors and are not billed.
+     */
+    fun bulkCheckSocialHandles(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "POST",
+                path = "/v1/social/bulk",
+                pathParams = listOf(),
+                queryParams = listOf(),
+                hasBody = true
+            ),
+            params
+        )
+
+    /**
+     * Check username availability across social, developer, creator, and community platforms. Optionally resolve repositories, subreddits, Discord invites, Substack profiles, and federated accounts.
      */
     fun checkSocialHandles(params: Map<String, Any?> = emptyMap()): String =
         client.request(
             EndpointDefinition(
                 method = "GET",
                 path = "/v1/social",
+                pathParams = listOf(),
+                queryParams = listOf("handle", "platforms", "resources"),
+                hasBody = false
+            ),
+            params
+        )
+
+    /**
+     * Returns supported username platforms, resource types, parameters, and examples for the social intelligence endpoint.
+     */
+    fun getSocialInfo(params: Map<String, Any?> = emptyMap()): String =
+        client.request(
+            EndpointDefinition(
+                method = "GET",
+                path = "/v1/social/info",
                 pathParams = listOf(),
                 queryParams = listOf(),
                 hasBody = false

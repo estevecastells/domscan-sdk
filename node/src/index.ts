@@ -1,5 +1,7 @@
 import { endpointManifest, type EndpointManifest } from './generated.js';
 
+export const VERSION = '0.2.0';
+
 export interface DomScanClientOptions {
   apiKey?: string;
   baseUrl?: string;
@@ -183,7 +185,7 @@ export class DomScan {
     this.apiKey = resolveApiKey(options.apiKey);
     this.baseUrl = normalizeBaseUrl(options.baseUrl || 'https://domscan.net');
     this.timeout = options.timeout ?? 10_000;
-    this.userAgent = options.userAgent ?? 'domscan-node/0.1.0';
+    this.userAgent = options.userAgent ?? `domscan-node/${VERSION}`;
     this.fetchImpl = fetchImpl;
     this.defaultHeaders = options.headers ?? {};
 
@@ -259,18 +261,23 @@ export class DomScan {
     const timeoutMs = options.timeout ?? this.timeout;
     const signal = controller.signal;
     const externalSignal = options.signal;
+    let timedOut = false;
+    const abortFromExternalSignal = () => controller.abort(externalSignal?.reason);
 
     if (externalSignal) {
       if (externalSignal.aborted) {
         controller.abort(externalSignal.reason);
       } else {
-        externalSignal.addEventListener('abort', () => controller.abort(externalSignal.reason), {
+        externalSignal.addEventListener('abort', abortFromExternalSignal, {
           once: true,
         });
       }
     }
 
-    const timeoutId = setTimeout(() => controller.abort(new Error('Request timed out')), timeoutMs);
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
 
     try {
       const response = await this.fetchImpl(url, {
@@ -281,9 +288,15 @@ export class DomScan {
       });
 
       const contentType = response.headers.get('content-type') || '';
-      const payload = contentType.includes('application/json')
-        ? await response.json()
-        : await response.text();
+      const responseBody = await response.text();
+      let payload: unknown = responseBody;
+      if (responseBody && contentType.includes('json')) {
+        try {
+          payload = JSON.parse(responseBody);
+        } catch {
+          payload = responseBody;
+        }
+      }
 
       if (!response.ok) {
         throw this.buildApiError(response.status, response.headers.get('x-request-id'), payload);
@@ -295,9 +308,16 @@ export class DomScan {
         throw error;
       }
 
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (timedOut) {
         throw new DomScanAPIError('Request timed out', {
           status: 408,
+          details: error,
+        });
+      }
+
+      if (externalSignal?.aborted) {
+        throw new DomScanAPIError('Request aborted', {
+          status: 0,
           details: error,
         });
       }
@@ -305,6 +325,7 @@ export class DomScan {
       throw error;
     } finally {
       clearTimeout(timeoutId);
+      externalSignal?.removeEventListener('abort', abortFromExternalSignal);
     }
   }
 

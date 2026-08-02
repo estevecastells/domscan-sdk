@@ -2,12 +2,15 @@
 
 Official PHP client for the [DomScan API](https://domscan.net/docs).
 
-This SDK is generated from the shared endpoint manifest in this repository and covers the same 79 public non-session endpoints as the other official DomScan SDKs.
+This SDK is generated from the shared endpoint manifest in this repository and covers the same 113 public non-session endpoints as the other official DomScan SDKs.
 
 ## Installation
 
 ```bash
-composer require estevecastells/domscan-sdk
+mkdir -p packages
+curl -L https://github.com/estevecastells/domscan-sdk/releases/latest/download/domscan-sdk-php.zip -o packages/domscan-sdk-php-0.2.0.zip
+composer config repositories.domscan artifact packages
+composer require estevecastells/domscan-sdk:0.2.0
 ```
 
 ## Quick Start

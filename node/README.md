@@ -2,13 +2,15 @@
 
 Official Node.js and TypeScript client for the [DomScan API](https://domscan.net/docs).
 
-The SDK is generated from DomScan's endpoint registry, so the public client surface stays aligned with the live API. This release exposes 79 public endpoints across availability, DNS, WHOIS, security, pricing, recipes, and intelligence workflows.
+The SDK is generated from DomScan's endpoint registry, so the public client surface stays aligned with the live API. Version 0.2.0 exposes 113 public non-session endpoints across availability, DNS, WHOIS, security, pricing, recipes, and intelligence workflows.
 
 ## Installation
 
 ```bash
-npm install @domscan/sdk
+npm install https://github.com/estevecastells/domscan-sdk/releases/latest/download/domscan-sdk-node.tgz
 ```
+
+The GitHub release tarball is the supported installation path for this version. The npm package name is reserved but is not yet published to the public registry.
 
 ## Quick Start
 
@@ -68,6 +70,11 @@ const dns = await client.dns.getDnsRecords({
 const prices = await client.pricing.getTldPricing({
   tld: 'ai',
 });
+
+const popularity = await client.domain.getDomainPopularity({
+  domain: 'openai.com',
+  include_history: true,
+});
 ```
 
 ## Error Handling
@@ -90,4 +97,5 @@ try {
 
 - Docs: [https://domscan.net/docs](https://domscan.net/docs)
 - OpenAPI: [https://domscan.net/v1/openapi.json](https://domscan.net/v1/openapi.json)
+- Releases: [https://github.com/estevecastells/domscan-sdk/releases](https://github.com/estevecastells/domscan-sdk/releases)
 - Repo hub: [../README.md](../README.md)

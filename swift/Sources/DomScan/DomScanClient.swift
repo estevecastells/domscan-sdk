@@ -39,7 +39,7 @@ public final class DomScanClient {
         baseURL: String = "https://domscan.net",
         timeout: TimeInterval = 10,
         headers: [String: String] = [:],
-        userAgent: String = "domscan-swift/0.1.0"
+        userAgent: String = "domscan-swift/0.2.0"
     ) {
         self.apiKey = apiKey
         self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -158,14 +158,14 @@ public final class AvailabilityService {
         )
     }
 
-    /// Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results.
+    /// Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results. Primary format: name + tlds. Single-domain shortcut: domain=example.com.
     public func checkDomainAvailability(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/status",
                 pathParams: [],
-                queryParams: ["name", "tlds", "prefer_cache"],
+                queryParams: ["name", "tlds", "domain", "prefer_cache"],
                 hasBody: false
             ),
             params: params
@@ -222,6 +222,20 @@ public final class DnsService {
         )
     }
 
+    /// Compare answers from the configured public recursive DNS resolvers for up to 10 domains. Results preserve input order and report per-domain errors.
+    public func bulkDnsPropagation(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/dns/propagation/bulk",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
     /// Check a specific DKIM selector for a domain and validate the public key.
     public func checkDkim(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
@@ -229,7 +243,7 @@ public final class DnsService {
                 method: "GET",
                 path: "/v1/tools/dkim/check",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "selector"],
                 hasBody: false
             ),
             params: params
@@ -243,7 +257,7 @@ public final class DnsService {
                 method: "GET",
                 path: "/v1/tools/dkim/discover",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain"],
                 hasBody: false
             ),
             params: params
@@ -264,91 +278,77 @@ public final class DnsService {
         )
     }
 
-    /// Get all DNS record types for a domain in a single call.
+    /// Get all major DNS record types for a domain in a single call with IPv6 parity, TXT classification, wildcard probe, and warning signals.
     public func getAllDnsRecords(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/dns/all",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "wildcard_probe"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Compare DNS records between two dates to see what changed.
-    public func getDnsDiff(_ params: [String: Any?] = [:]) async throws -> Any {
-        try await client.request(
-            endpoint: EndpointDefinition(
-                method: "GET",
-                path: "/v1/dns/diff",
-                pathParams: [],
-                queryParams: [],
-                hasBody: false
-            ),
-            params: params
-        )
-    }
-
-    /// Track DNS record changes over time. Data accumulates from API lookups.
+    /// Review day-level DNS record values observed by successful DomScan DNS lookups. This lookup-driven observation log can miss changes between lookups and does not include external passive DNS sources.
     public func getDnsHistory(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/dns/history",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "type", "from", "to", "limit"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Check DNS propagation across multiple global DNS servers.
+    /// Compare DNS answers from DomScan's configured Cloudflare and Google public recursive DoH providers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
     public func getDnsPropagation(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/dns/propagation",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "type", "expected"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically.
+    /// Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically with TXT classification and additive warning signals.
     public func getDnsRecords(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/dns",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "type"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, and CAA records.
+    /// Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, CAA, MTA-STS, TLS-RPT, resolver latency, and AXFR exposure.
     public func getDnsSecurity(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/dns/security",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Get list of global DNS servers used for propagation checks.
+    /// List the public recursive DoH providers used for resolver comparison. These are global anycast services, not geographic probes.
     public func getDnsServers(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -412,6 +412,34 @@ public final class DomainService {
         )
     }
 
+    /// Get normalized RDAP registration data: registrar, dates, nameservers, DNSSEC status.
+    public func bulkGetDomainProfile(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/profile/bulk",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// Compare up to 50 candidate brand names and return ranked scores.
+    public func compareBrandNames(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/score/compare",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
     /// Compare two domains side-by-side across multiple metrics and attributes.
     public func compareDomains(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
@@ -419,35 +447,63 @@ public final class DomainService {
                 method: "GET",
                 path: "/v1/compare",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domains"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Comprehensive health checks: DNS, SSL, email deliverability, security headers, and more.
+    /// Comprehensive health checks with DNS, SSL, email, proxy-enriched TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
     public func getDomainHealth(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/health",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "details"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Comprehensive domain intelligence in one call: DNS, WHOIS, health, and reputation data aggregated into a single response.
+    /// Aggregate DNS, RDAP registration, health, reputation, and popularity observations in one response, with null unknowns and per-component freshness.
     public func getDomainOverview(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/overview",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Get the current research-grade Tranco rank and bucket for a domain, with explicit ranked, unranked, and unknown states, source date, cache state, and optional lookup-driven history.
+    public func getDomainPopularity(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/popularity",
+                pathParams: [],
+                queryParams: ["domain", "include_history", "history_limit"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Read prior Tranco observations recorded by DomScan lookups. This is a lookup-driven history, not a complete daily rank series.
+    public func getDomainPopularityHistory(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/popularity/history",
+                pathParams: [],
+                queryParams: ["domain", "limit"],
                 hasBody: false
             ),
             params: params
@@ -461,7 +517,7 @@ public final class DomainService {
                 method: "GET",
                 path: "/v1/profile",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain"],
                 hasBody: false
             ),
             params: params
@@ -475,7 +531,7 @@ public final class DomainService {
                 method: "GET",
                 path: "/v1/score",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["name", "domain"],
                 hasBody: false
             ),
             params: params
@@ -489,7 +545,7 @@ public final class DomainService {
                 method: "GET",
                 path: "/v1/value",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain"],
                 hasBody: false
             ),
             params: params
@@ -502,6 +558,20 @@ public final class DomainService {
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/health/quick",
+                pathParams: [],
+                queryParams: ["domain"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Returns scoring dimensions, grade scale, and related scoring endpoints.
+    public func getScoreInfo(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/score/info",
                 pathParams: [],
                 queryParams: [],
                 hasBody: false
@@ -531,7 +601,7 @@ public final class DomainService {
                 method: "GET",
                 path: "/v1/tlds",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["type"],
                 hasBody: false
             ),
             params: params
@@ -545,7 +615,7 @@ public final class DomainService {
                 method: "GET",
                 path: "/v1/suggest",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["keywords", "tlds", "style", "industry", "language", "limit", "check"],
                 hasBody: false
             ),
             params: params
@@ -560,14 +630,84 @@ public final class IntelligenceService {
         self.client = client
     }
 
-    /// Classify websites into 350+ IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.
+    /// Detect hosting, CDN, WAF, DNS, and email infrastructure for up to 10 domains. Results preserve input order and include per-domain errors.
+    public func bulkGetHosting(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/hosting/bulk",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// Extract normalized URL intelligence for up to 10 public URLs. Results preserve input order and include per-item errors.
+    public func bulkGetUrlIntelligence(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/url-intelligence/bulk",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// Extract website identity assets for up to 10 domains. Results preserve input order and include per-item errors.
+    public func bulkGetWebsiteIdentityAssets(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/identity-assets/bulk",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// Resolve public identities for up to 10 company domains. Results preserve input order and include per-item errors.
+    public func bulkResolveInternetIdentity(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/identity-resolution/bulk",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// Cancel unstarted technology scan work and settle item-level refunds. An already running browser scan may finish, but its result is discarded.
+    public func cancelTechScanJob(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "DELETE",
+                path: "/v1/tech/jobs/:job_id",
+                pathParams: ["job_id"],
+                queryParams: [],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Classify websites into DomScan IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.
     public func categorizeWebsite(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/categorize",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["url", "domain", "skip_cache", "min_confidence"],
                 hasBody: false
             ),
             params: params
@@ -588,6 +728,34 @@ public final class IntelligenceService {
         )
     }
 
+    /// Create a durable asynchronous technology scan job for up to 100 public targets. Supports fast, JavaScript-rendered, and bounded same-origin deep modes with item-level billing and refunds.
+    public func createTechScanJob(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/tech/jobs",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// List the DomScan IAB-inspired category IDs, response category names, taxonomy names, and subcategories returned by the Website Categorization API.
+    public func getCategorizationTaxonomy(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/categorize/taxonomy",
+                pathParams: [],
+                queryParams: [],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
     /// Extract company information from a domain. Get name, industry, and contact details.
     public func getCompany(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
@@ -595,7 +763,7 @@ public final class IntelligenceService {
                 method: "GET",
                 path: "/v1/company",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain"],
                 hasBody: false
             ),
             params: params
@@ -609,7 +777,7 @@ public final class IntelligenceService {
                 method: "GET",
                 path: "/v1/similarity",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain1", "domain2"],
                 hasBody: false
             ),
             params: params
@@ -623,7 +791,7 @@ public final class IntelligenceService {
                 method: "GET",
                 path: "/v1/hosting",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain"],
                 hasBody: false
             ),
             params: params
@@ -651,6 +819,20 @@ public final class IntelligenceService {
                 method: "GET",
                 path: "/v1/redirects",
                 pathParams: [],
+                queryParams: ["url", "domain"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Get owner-scoped progress, item counts, billing settlement, and expiration details for a technology scan job.
+    public func getTechScanJob(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/tech/jobs/:job_id",
+                pathParams: ["job_id"],
                 queryParams: [],
                 hasBody: false
             ),
@@ -658,14 +840,98 @@ public final class IntelligenceService {
         )
     }
 
-    /// Detect website technologies: CDN, CMS, frameworks, analytics, and more.
+    /// Get ordered, signed-cursor-paginated results for a technology scan job. Full results expire after 48 hours and operational job records expire after seven days.
+    public func getTechScanJobResults(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/tech/jobs/:job_id/results",
+                pathParams: ["job_id"],
+                queryParams: ["cursor", "limit"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Detect 500+ verified website technologies across 80+ categories using bounded HTTP signals, rendered JavaScript globals, observed network URLs, and same-origin multi-page analysis. Returns confidence, sanitized evidence scoped to each page, caveats, provenance, explicit limits, and complete or partial coverage.
     public func getTechStack(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/tech",
                 pathParams: [],
+                queryParams: ["url", "domain", "mode", "max_pages", "skip_cache"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Extract normalized metadata, link-preview assets, Open Graph and Twitter Card fields, canonical URL, robots directives, structured-data types, security headers, links, contacts, and declared profiles from a public URL.
+    public func getUrlIntelligence(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/url-intelligence",
+                pathParams: [],
+                queryParams: ["url"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Discover a website organization name, logo candidates, favicons, touch icons, preview image, theme color, manifest, and declared social profiles from public website metadata.
+    public func getWebsiteIdentityAssets(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/identity-assets",
+                pathParams: [],
+                queryParams: ["domain"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// List recent short-lived technology scan jobs for the authenticated account.
+    public func listTechScanJobs(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/tech/jobs",
+                pathParams: [],
+                queryParams: ["limit", "cursor"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Run up to 10 ordered fast technology scans in one request. Each valid target is billed independently, and failed upstream scans are refunded independently.
+    public func postTechStackBulk(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/tech/bulk",
+                pathParams: [],
                 queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// Resolve a company domain into public social, developer, creator, federated, and app-store identities explicitly declared by its website.
+    public func resolveInternetIdentity(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/identity-resolution",
+                pathParams: [],
+                queryParams: ["domain"],
                 hasBody: false
             ),
             params: params
@@ -678,6 +944,90 @@ public final class MetaService {
 
     init(client: DomScanClient) {
         self.client = client
+    }
+
+    /// Cancel unstarted batch items and refund their item charges. An item already being processed may finish.
+    public func cancelApiBatch(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "DELETE",
+                path: "/v1/batches/:job_id",
+                pathParams: ["job_id"],
+                queryParams: [],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and failed items are refunded independently.
+    public func createApiBatch(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/batches",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// Download the full disposable email domain dataset in various formats.
+    public func downloadEmailBlacklist(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/email/blacklist/download",
+                pathParams: [],
+                queryParams: ["format"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Get progress, item counts, billing settlement, webhook delivery state, and expiration for an account API batch.
+    public func getApiBatch(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/batches/:job_id",
+                pathParams: ["job_id"],
+                queryParams: [],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Get ordered JSON results or download all items as RFC 4180 CSV for an account API batch. Results and job metadata expire 24 hours after creation.
+    public func getApiBatchResults(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/batches/:job_id/results",
+                pathParams: ["job_id"],
+                queryParams: ["after", "limit", "format"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Browse the disposable email domain dataset as a paginated data feed.
+    public func getEmailBlacklistInfo(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/email/blacklist",
+                pathParams: [],
+                queryParams: ["limit", "offset", "format"],
+                hasBody: false
+            ),
+            params: params
+        )
     }
 
     /// Get credit costs per endpoint and API pricing information.
@@ -693,6 +1043,20 @@ public final class MetaService {
             params: params
         )
     }
+
+    /// List unexpired asynchronous API batches for the active customer account.
+    public func listApiBatches(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/batches",
+                pathParams: [],
+                queryParams: ["limit"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
 }
 
 public final class OsintService {
@@ -700,6 +1064,20 @@ public final class OsintService {
 
     init(client: DomScanClient) {
         self.client = client
+    }
+
+    /// Query raw RDAP data for up to 10 domains, IP addresses, CIDR ranges, or autonomous system numbers. One query type applies to the whole batch.
+    public func bulkGetRdap(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/rdap/bulk",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
     }
 
     /// Get WHOIS data for multiple domains at once.
@@ -711,34 +1089,6 @@ public final class OsintService {
                 pathParams: [],
                 queryParams: [],
                 hasBody: true
-            ),
-            params: params
-        )
-    }
-
-    /// Find domains that use a specific nameserver.
-    public func getDnsReverseNs(_ params: [String: Any?] = [:]) async throws -> Any {
-        try await client.request(
-            endpoint: EndpointDefinition(
-                method: "GET",
-                path: "/v1/dns/reverse/ns",
-                pathParams: [],
-                queryParams: [],
-                hasBody: false
-            ),
-            params: params
-        )
-    }
-
-    /// Map domain relationships through shared infrastructure and registrant data.
-    public func getDomainGraph(_ params: [String: Any?] = [:]) async throws -> Any {
-        try await client.request(
-            endpoint: EndpointDefinition(
-                method: "GET",
-                path: "/v1/graph",
-                pathParams: [],
-                queryParams: [],
-                hasBody: false
             ),
             params: params
         )
@@ -758,14 +1108,14 @@ public final class OsintService {
         )
     }
 
-    /// Get IP addresses with geolocation, ASN, and hosting provider information.
+    /// Get IP or resolved-domain geolocation and ASN data, provider security flags, coarse hosting classification, and FCrDNS. PTR-based signals are derived from the IP, never the caller hostname.
     public func getIpInfo(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/ip",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["ip", "domain"],
                 hasBody: false
             ),
             params: params
@@ -779,19 +1129,19 @@ public final class OsintService {
                 method: "GET",
                 path: "/v1/mac",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["mac"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Find all domains hosted on a specific IP address.
-    public func getReverseIp(_ params: [String: Any?] = [:]) async throws -> Any {
+    /// Returns parameter help and an example response for the MAC address lookup endpoint.
+    public func getMacLookupInfo(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
-                path: "/v1/reverse/ip",
+                path: "/v1/mac/info",
                 pathParams: [],
                 queryParams: [],
                 hasBody: false
@@ -800,14 +1150,14 @@ public final class OsintService {
         )
     }
 
-    /// Find all domains using a specific mail server for email infrastructure mapping.
-    public func getReverseMx(_ params: [String: Any?] = [:]) async throws -> Any {
+    /// Get raw RDAP response for a domain, IP address, or autonomous system number.
+    public func getRdap(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
-                path: "/v1/reverse/mx",
+                path: "/v1/rdap",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["query", "type", "domain"],
                 hasBody: false
             ),
             params: params
@@ -821,14 +1171,14 @@ public final class OsintService {
                 method: "GET",
                 path: "/v1/whois",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Track WHOIS record changes over time. Shows registrar transfers, expiry extensions, nameserver changes, and privacy toggles. Data accumulates from API lookups.
+    /// Query the DomScan WHOIS observation log. A qualifying fresh, successful RDAP-backed GET /v1/whois or /v2/whois lookup can record at most one normalized snapshot per domain per UTC day. Cached responses, bulk lookups, history reads, and traditional WHOIS-only fallbacks do not add snapshots. This is not a global historical WHOIS archive and does not provide registrant identity or contact history.
     public func getWhoisHistory(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -850,7 +1200,7 @@ public final class PricingService {
         self.client = client
     }
 
-    /// Get pricing for multiple domains at once.
+    /// Read daily standard-price rows for multiple TLDs. Each unique TLD and selected registrar pair costs one credit.
     public func bulkPricing(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -864,35 +1214,35 @@ public final class PricingService {
         )
     }
 
-    /// Compare domain prices across multiple registrars.
+    /// Compare daily standard-TLD rows and separate credential-backed exact-domain quotes without inferring missing operation prices.
     public func comparePrices(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/prices/compare",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "registrars", "skip_cache"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Get domain registration and renewal prices across registrars.
+    /// Read daily standard-TLD price snapshots from verified official registrar sources. One credit is charged per unique TLD and selected registrar pair.
     public func getPrices(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/prices",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["tlds", "registrars", "skip_cache"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Get list of supported registrars with pricing data.
+    /// List registrar metadata and identify which registrars currently have integrated DomScan pricing sources.
     public func getRegistrars(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -906,14 +1256,14 @@ public final class PricingService {
         )
     }
 
-    /// Get pricing for a specific TLD across registrars.
+    /// Read daily standard-price rows for one TLD, with registrar filters, provenance, freshness, and pair-based billing.
     public func getTldPricing(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/prices/tld/:tld",
                 pathParams: ["tld"],
-                queryParams: [],
+                queryParams: ["registrars", "skip_cache"],
                 hasBody: false
             ),
             params: params
@@ -928,140 +1278,140 @@ public final class RecipesService {
         self.client = client
     }
 
-    /// Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 6 credits.
+    /// Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 4 credits.
     public func recipeBrandLaunch(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/recipes/brand-launch",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "brand_name", "platforms"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 8 credits.
+    /// Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 5 credits.
     public func recipeCompetitorIntel(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/recipes/competitor-intel",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "discover_subdomains", "analyze_email"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Brand protection through strategic domain acquisition recommendations. Saves 10 credits.
+    /// Brand protection through strategic domain acquisition recommendations. Saves 8 credits.
     public func recipeDefensiveRegistration(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/recipes/defensive-registration",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["brand", "owned_domains", "priority_tlds", "include_typos", "budget"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Pre-migration checklist and current DNS configuration snapshot. Saves 6 credits.
+    /// Pre-migration checklist and current DNS configuration snapshot. Saves 5 credits.
     public func recipeDnsMigration(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/recipes/dns-migration",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "target_nameservers", "critical_records"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// AI-powered domain discovery with filtering and availability checking. Saves 15 credits.
+    /// AI-powered domain discovery with filtering and availability checking. Saves 13 credits.
     public func recipeDomainFinder(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/recipes/domain-finder",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["keywords", "tlds", "style", "max_length", "language", "limit"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 8 credits vs individual calls.
+    /// Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 6 credits vs individual calls.
     public func recipeDueDiligence(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/recipes/due-diligence",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "include_competitors"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 7 credits.
+    /// Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 5 credits.
     public func recipeEmailDeliverability(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/recipes/email-deliverability",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "dkim_selectors", "check_blacklists"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Complete infrastructure mapping and attack surface analysis. Saves 13 credits.
+    /// Complete infrastructure mapping and attack surface analysis. Saves 10 credits.
     public func recipeInfrastructureDiscovery(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/recipes/infrastructure-discovery",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "depth", "include_historical"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Evidence collection and analysis for suspected phishing domains. Saves 12 credits.
+    /// Evidence collection and analysis for suspected phishing domains. Saves 10 credits.
     public func recipePhishingInvestigation(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/recipes/phishing-investigation",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["suspicious_domain", "legitimate_domain", "collect_evidence"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 280 credits.
+    /// Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 275 credits.
     public func recipePortfolioAudit(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/recipes/portfolio-audit",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domains", "include_valuation", "include_health", "alert_expiring_days"],
                 hasBody: false
             ),
             params: params
@@ -1082,14 +1432,14 @@ public final class RecipesService {
         )
     }
 
-    /// Comprehensive typosquatting and brand threat analysis for security teams. Saves 25 credits.
+    /// Comprehensive typosquatting and brand threat analysis for security teams. Saves 22 credits.
     public func recipeThreatAssessment(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/recipes/threat-assessment",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "max_threats", "include_evidence"],
                 hasBody: false
             ),
             params: params
@@ -1118,6 +1468,48 @@ public final class SecurityService {
         )
     }
 
+    /// Search Certificate Transparency data for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.
+    public func bulkGetCertificates(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/certificates/bulk",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// Check SPF, DKIM, DMARC, MTA-STS, TLS-RPT, and recursive SPF behavior for up to 10 domains. Results preserve input order and include per-domain errors.
+    public func bulkGetEmailAuth(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/email-auth/bulk",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// Run the passive subdomain evidence pipeline for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.
+    public func bulkGetSubdomains(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/subdomains/bulk",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
     /// Check if an email domain is on disposable/temporary email blacklists.
     public func checkEmailBlacklist(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
@@ -1125,21 +1517,7 @@ public final class SecurityService {
                 method: "GET",
                 path: "/v1/email/check",
                 pathParams: [],
-                queryParams: [],
-                hasBody: false
-            ),
-            params: params
-        )
-    }
-
-    /// Download the full email blacklist database in various formats.
-    public func downloadEmailBlacklist(_ params: [String: Any?] = [:]) async throws -> Any {
-        try await client.request(
-            endpoint: EndpointDefinition(
-                method: "GET",
-                path: "/v1/email/blacklist/download",
-                pathParams: [],
-                queryParams: [],
+                queryParams: ["email", "checks"],
                 hasBody: false
             ),
             params: params
@@ -1153,49 +1531,63 @@ public final class SecurityService {
                 method: "GET",
                 path: "/v1/certificates",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "include_subdomains", "include_expired", "limit", "cursor"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Check domain reputation across security feeds, blacklists, and threat intelligence.
+    /// Check domain reputation across DNS, TLS, blacklist, parking, web presence, and email signals with score confidence metadata.
     public func getDomainReputation(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/reputation",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Check DMARC, SPF, and DKIM configurations for email security auditing.
+    /// Check DMARC, SPF, DKIM, MTA-STS, TLS-RPT, and recursive SPF behavior for email security auditing.
     public func getEmailAuth(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/email-auth",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "selectors"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Get information about the email blacklist database.
-    public func getEmailBlacklistInfo(_ params: [String: Any?] = [:]) async throws -> Any {
+    /// Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and proxy-backed mail security checks.
+    public func getEmailCompliance(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
-                path: "/v1/email/blacklist",
+                path: "/v1/email/compliance",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "selectors", "providers"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Run a comprehensive live SSL/TLS audit for a domain, aggregating certificate, chain, revocation, HSTS, HTTP version, and TLS posture details.
+    public func getSslAudit(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/ssl/audit",
+                pathParams: [],
+                queryParams: ["domain"],
                 hasBody: false
             ),
             params: params
@@ -1209,7 +1601,21 @@ public final class SecurityService {
                 method: "GET",
                 path: "/v1/ssl/chain",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Run a premium cached deep SSL/TLS scan for a domain. Returns a fresh cached result immediately when available, or starts a long-running scan and returns a signed polling token.
+    public func getSslDeepScan(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/ssl/deep-scan",
+                pathParams: [],
+                queryParams: ["domain", "refresh", "profile"],
                 hasBody: false
             ),
             params: params
@@ -1223,35 +1629,35 @@ public final class SecurityService {
                 method: "GET",
                 path: "/v1/ssl/expiring",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "threshold_days"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring.
+    /// Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring plus HSTS preload audit metadata.
     public func getSslGrade(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/ssl/grade",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Discover subdomains using Certificate Transparency and DNS enumeration.
+    /// Return best-effort public hostname evidence from a sequential passive pipeline. Discovery tries crt.sh first, then can fall back to HackerTarget, ThreatMiner, the Wayback Machine, and CertSpotter. Results include their evidence source. DomScan does not brute-force names or crawl the target site, so coverage is incomplete.
     public func getSubdomains(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/subdomains",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "sources", "verify", "include_wildcards", "limit", "prefer_cache"],
                 hasBody: false
             ),
             params: params
@@ -1265,14 +1671,56 @@ public final class SecurityService {
                 method: "GET",
                 path: "/v1/typos",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["domain", "check_registered", "limit", "include_tld_swap"],
                 hasBody: false
             ),
             params: params
         )
     }
 
-    /// Verify email deliverability with syntax validation, MX lookup, disposable detection, and optional SMTP mailbox verification. Basic check costs 1 credit; full SMTP check costs 5 credits.
+    /// Find exposed software versions and deterministic web security misconfigurations using verified technology evidence, exact OSV package matching, CISA Known Exploited Vulnerabilities, FIRST EPSS, and isolated Edge Relay rendering. Results separate affected versions from configuration findings and preserve unknown coverage.
+    public func getVulnerabilities(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/vulnerabilities",
+                pathParams: [],
+                queryParams: ["url", "domain", "mode"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Validate, normalize, and enrich international phone numbers with country-specific coverage levels, offline numbering-plan, location, time-zone, original prefix-carrier, portability-support, dialing, short-number, service, and official allocation metadata. US NANPA and Canadian CNA/CNAC snapshots add NPA-NXX central office code status and original code-holder evidence. DomScan uses its own Edge Relay and free local datasets without paid or per-number third-party lookups. Results never claim current carrier, reachability, subscriber identity, or individual-number assignment.
+    public func validatePhoneNumber(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/phone/validate",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and uses one DomScan Edge Relay batch with zero paid or per-number third-party lookups.
+    public func validatePhoneNumbersBulk(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/phone/validate/bulk",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// Verify email deliverability with syntax validation, MX/null MX lookup, reserved/test-domain detection, provider typo suggestions, MX provider fingerprinting, SPF/DMARC/MTA-STS/TLS-RPT evidence, local-part/domain intelligence, toxic/do-not-mail signals, confidence scoring, and industry-style deliverability status. Mailbox-level SMTP probing is deprecated and is not charged or performed.
     public func verifyEmail(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -1308,12 +1756,40 @@ public final class SocialService {
         self.client = client
     }
 
-    /// Check username availability across social platforms like GitHub, Reddit, and more.
+    /// Check up to 10 social handles or resource identifiers in one request at the normal 2-credit rate per valid item, with no bulk discount. Invalid items return per-item errors and are not billed.
+    public func bulkCheckSocialHandles(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/social/bulk",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
+    /// Check username availability across social, developer, creator, and community platforms. Optionally resolve repositories, subreddits, Discord invites, Substack profiles, and federated accounts.
     public func checkSocialHandles(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/social",
+                pathParams: [],
+                queryParams: ["handle", "platforms", "resources"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Returns supported username platforms, resource types, parameters, and examples for the social intelligence endpoint.
+    public func getSocialInfo(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/social/info",
                 pathParams: [],
                 queryParams: [],
                 hasBody: false

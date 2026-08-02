@@ -1,0 +1,92 @@
+name: Verify SDKs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  generated-node-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: node/package-lock.json
+      - run: node scripts/generate-sdks.mjs
+      - run: git diff --exit-code
+      - run: npm ci
+        working-directory: node
+      - run: npm test
+        working-directory: node
+      - run: npm run typecheck
+        working-directory: node
+      - run: npm run build
+        working-directory: node
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build
+      - run: PYTHONPATH=src python -m unittest discover -s tests -v
+        working-directory: python
+      - run: python -m build
+        working-directory: python
+
+  go-ruby-php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - run: go test ./...
+        working-directory: go
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+      - run: ruby -c lib/domscan.rb
+        working-directory: ruby
+      - run: gem build domscan-sdk.gemspec
+        working-directory: ruby
+      - run: php -l src/DomScan.php
+        working-directory: php
+      - run: composer validate --strict
+        working-directory: php
+
+  jvm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: mvn --batch-mode --file java/pom.xml package
+      - run: gradle -p kotlin build
+
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - run: dotnet build csharp/DomScan.SDK.csproj --configuration Release
+
+  swift:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo check --workspace
