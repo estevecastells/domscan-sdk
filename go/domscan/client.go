@@ -72,7 +72,7 @@ func NewClient(config *Config) *Client {
 	timeout := 10 * time.Second
 	headers := map[string]string{}
 	apiKey := os.Getenv("DOMSCAN_API_KEY")
-	userAgent := "domscan-go/0.1.0"
+	userAgent := "domscan-go/0.2.0"
 	var httpClient *http.Client
 
 	if config != nil {
@@ -296,13 +296,13 @@ func (s *AvailabilityService) BulkCheckDomains(ctx context.Context, params Param
 	}, params)
 }
 
-// Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results.
+// Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results. Primary format: name + tlds. Single-domain shortcut: domain=example.com.
 func (s *AvailabilityService) CheckDomainAvailability(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/status",
 		PathParams: []string{},
-		QueryParams: []string{"name", "tlds", "prefer_cache"},
+		QueryParams: []string{"name", "tlds", "domain", "prefer_cache"},
 		HasBody: false,
 	}, params)
 }
@@ -344,13 +344,24 @@ func (s *DnsService) BuildSpf(ctx context.Context, params Params) (any, error) {
 	}, params)
 }
 
+// Compare answers from the configured public recursive DNS resolvers for up to 10 domains. Results preserve input order and report per-domain errors.
+func (s *DnsService) BulkDnsPropagation(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/dns/propagation/bulk",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
 // Check a specific DKIM selector for a domain and validate the public key.
 func (s *DnsService) CheckDkim(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/tools/dkim/check",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "selector"},
 		HasBody: false,
 	}, params)
 }
@@ -361,7 +372,7 @@ func (s *DnsService) DiscoverDkim(ctx context.Context, params Params) (any, erro
 		Method: "GET",
 		Path: "/v1/tools/dkim/discover",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain"},
 		HasBody: false,
 	}, params)
 }
@@ -377,73 +388,62 @@ func (s *DnsService) FlattenSpf(ctx context.Context, params Params) (any, error)
 	}, params)
 }
 
-// Get all DNS record types for a domain in a single call.
+// Get all major DNS record types for a domain in a single call with IPv6 parity, TXT classification, wildcard probe, and warning signals.
 func (s *DnsService) GetAllDnsRecords(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/dns/all",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "wildcard_probe"},
 		HasBody: false,
 	}, params)
 }
 
-// Compare DNS records between two dates to see what changed.
-func (s *DnsService) GetDnsDiff(ctx context.Context, params Params) (any, error) {
-	return s.client.request(ctx, endpointDefinition{
-		Method: "GET",
-		Path: "/v1/dns/diff",
-		PathParams: []string{},
-		QueryParams: []string{},
-		HasBody: false,
-	}, params)
-}
-
-// Track DNS record changes over time. Data accumulates from API lookups.
+// Review day-level DNS record values observed by successful DomScan DNS lookups. This lookup-driven observation log can miss changes between lookups and does not include external passive DNS sources.
 func (s *DnsService) GetDnsHistory(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/dns/history",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "type", "from", "to", "limit"},
 		HasBody: false,
 	}, params)
 }
 
-// Check DNS propagation across multiple global DNS servers.
+// Compare DNS answers from DomScan's configured Cloudflare and Google public recursive DoH providers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
 func (s *DnsService) GetDnsPropagation(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/dns/propagation",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "type", "expected"},
 		HasBody: false,
 	}, params)
 }
 
-// Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically.
+// Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically with TXT classification and additive warning signals.
 func (s *DnsService) GetDnsRecords(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/dns",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "type"},
 		HasBody: false,
 	}, params)
 }
 
-// Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, and CAA records.
+// Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, CAA, MTA-STS, TLS-RPT, resolver latency, and AXFR exposure.
 func (s *DnsService) GetDnsSecurity(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/dns/security",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain"},
 		HasBody: false,
 	}, params)
 }
 
-// Get list of global DNS servers used for propagation checks.
+// List the public recursive DoH providers used for resolver comparison. These are global anycast services, not geographic probes.
 func (s *DnsService) GetDnsServers(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
@@ -491,35 +491,79 @@ func (s *DomainService) BulkDomainValue(ctx context.Context, params Params) (any
 	}, params)
 }
 
+// Get normalized RDAP registration data: registrar, dates, nameservers, DNSSEC status.
+func (s *DomainService) BulkGetDomainProfile(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/profile/bulk",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// Compare up to 50 candidate brand names and return ranked scores.
+func (s *DomainService) CompareBrandNames(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/score/compare",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
 // Compare two domains side-by-side across multiple metrics and attributes.
 func (s *DomainService) CompareDomains(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/compare",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domains"},
 		HasBody: false,
 	}, params)
 }
 
-// Comprehensive health checks: DNS, SSL, email deliverability, security headers, and more.
+// Comprehensive health checks with DNS, SSL, email, proxy-enriched TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
 func (s *DomainService) GetDomainHealth(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/health",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "details"},
 		HasBody: false,
 	}, params)
 }
 
-// Comprehensive domain intelligence in one call: DNS, WHOIS, health, and reputation data aggregated into a single response.
+// Aggregate DNS, RDAP registration, health, reputation, and popularity observations in one response, with null unknowns and per-component freshness.
 func (s *DomainService) GetDomainOverview(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/overview",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain"},
+		HasBody: false,
+	}, params)
+}
+
+// Get the current research-grade Tranco rank and bucket for a domain, with explicit ranked, unranked, and unknown states, source date, cache state, and optional lookup-driven history.
+func (s *DomainService) GetDomainPopularity(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/popularity",
+		PathParams: []string{},
+		QueryParams: []string{"domain", "include_history", "history_limit"},
+		HasBody: false,
+	}, params)
+}
+
+// Read prior Tranco observations recorded by DomScan lookups. This is a lookup-driven history, not a complete daily rank series.
+func (s *DomainService) GetDomainPopularityHistory(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/popularity/history",
+		PathParams: []string{},
+		QueryParams: []string{"domain", "limit"},
 		HasBody: false,
 	}, params)
 }
@@ -530,7 +574,7 @@ func (s *DomainService) GetDomainProfile(ctx context.Context, params Params) (an
 		Method: "GET",
 		Path: "/v1/profile",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain"},
 		HasBody: false,
 	}, params)
 }
@@ -541,7 +585,7 @@ func (s *DomainService) GetDomainScore(ctx context.Context, params Params) (any,
 		Method: "GET",
 		Path: "/v1/score",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"name", "domain"},
 		HasBody: false,
 	}, params)
 }
@@ -552,7 +596,7 @@ func (s *DomainService) GetDomainValue(ctx context.Context, params Params) (any,
 		Method: "GET",
 		Path: "/v1/value",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain"},
 		HasBody: false,
 	}, params)
 }
@@ -562,6 +606,17 @@ func (s *DomainService) GetQuickHealth(ctx context.Context, params Params) (any,
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/health/quick",
+		PathParams: []string{},
+		QueryParams: []string{"domain"},
+		HasBody: false,
+	}, params)
+}
+
+// Returns scoring dimensions, grade scale, and related scoring endpoints.
+func (s *DomainService) GetScoreInfo(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/score/info",
 		PathParams: []string{},
 		QueryParams: []string{},
 		HasBody: false,
@@ -585,7 +640,7 @@ func (s *DomainService) GetTlds(ctx context.Context, params Params) (any, error)
 		Method: "GET",
 		Path: "/v1/tlds",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"type"},
 		HasBody: false,
 	}, params)
 }
@@ -596,7 +651,7 @@ func (s *DomainService) SuggestDomains(ctx context.Context, params Params) (any,
 		Method: "GET",
 		Path: "/v1/suggest",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"keywords", "tlds", "style", "industry", "language", "limit", "check"},
 		HasBody: false,
 	}, params)
 }
@@ -605,13 +660,68 @@ type IntelligenceService struct {
 	client *Client
 }
 
-// Classify websites into 350+ IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.
+// Detect hosting, CDN, WAF, DNS, and email infrastructure for up to 10 domains. Results preserve input order and include per-domain errors.
+func (s *IntelligenceService) BulkGetHosting(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/hosting/bulk",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// Extract normalized URL intelligence for up to 10 public URLs. Results preserve input order and include per-item errors.
+func (s *IntelligenceService) BulkGetUrlIntelligence(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/url-intelligence/bulk",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// Extract website identity assets for up to 10 domains. Results preserve input order and include per-item errors.
+func (s *IntelligenceService) BulkGetWebsiteIdentityAssets(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/identity-assets/bulk",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// Resolve public identities for up to 10 company domains. Results preserve input order and include per-item errors.
+func (s *IntelligenceService) BulkResolveInternetIdentity(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/identity-resolution/bulk",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// Cancel unstarted technology scan work and settle item-level refunds. An already running browser scan may finish, but its result is discarded.
+func (s *IntelligenceService) CancelTechScanJob(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "DELETE",
+		Path: "/v1/tech/jobs/:job_id",
+		PathParams: []string{"job_id"},
+		QueryParams: []string{},
+		HasBody: false,
+	}, params)
+}
+
+// Classify websites into DomScan IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.
 func (s *IntelligenceService) CategorizeWebsite(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/categorize",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"url", "domain", "skip_cache", "min_confidence"},
 		HasBody: false,
 	}, params)
 }
@@ -627,13 +737,35 @@ func (s *IntelligenceService) CategorizeWebsiteBulk(ctx context.Context, params 
 	}, params)
 }
 
+// Create a durable asynchronous technology scan job for up to 100 public targets. Supports fast, JavaScript-rendered, and bounded same-origin deep modes with item-level billing and refunds.
+func (s *IntelligenceService) CreateTechScanJob(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/tech/jobs",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// List the DomScan IAB-inspired category IDs, response category names, taxonomy names, and subcategories returned by the Website Categorization API.
+func (s *IntelligenceService) GetCategorizationTaxonomy(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/categorize/taxonomy",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: false,
+	}, params)
+}
+
 // Extract company information from a domain. Get name, industry, and contact details.
 func (s *IntelligenceService) GetCompany(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/company",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain"},
 		HasBody: false,
 	}, params)
 }
@@ -644,7 +776,7 @@ func (s *IntelligenceService) GetDomainSimilarity(ctx context.Context, params Pa
 		Method: "GET",
 		Path: "/v1/similarity",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain1", "domain2"},
 		HasBody: false,
 	}, params)
 }
@@ -655,7 +787,7 @@ func (s *IntelligenceService) GetHosting(ctx context.Context, params Params) (an
 		Method: "GET",
 		Path: "/v1/hosting",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain"},
 		HasBody: false,
 	}, params)
 }
@@ -677,24 +809,167 @@ func (s *IntelligenceService) GetRedirects(ctx context.Context, params Params) (
 		Method: "GET",
 		Path: "/v1/redirects",
 		PathParams: []string{},
+		QueryParams: []string{"url", "domain"},
+		HasBody: false,
+	}, params)
+}
+
+// Get owner-scoped progress, item counts, billing settlement, and expiration details for a technology scan job.
+func (s *IntelligenceService) GetTechScanJob(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/tech/jobs/:job_id",
+		PathParams: []string{"job_id"},
 		QueryParams: []string{},
 		HasBody: false,
 	}, params)
 }
 
-// Detect website technologies: CDN, CMS, frameworks, analytics, and more.
+// Get ordered, signed-cursor-paginated results for a technology scan job. Full results expire after 48 hours and operational job records expire after seven days.
+func (s *IntelligenceService) GetTechScanJobResults(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/tech/jobs/:job_id/results",
+		PathParams: []string{"job_id"},
+		QueryParams: []string{"cursor", "limit"},
+		HasBody: false,
+	}, params)
+}
+
+// Detect 500+ verified website technologies across 80+ categories using bounded HTTP signals, rendered JavaScript globals, observed network URLs, and same-origin multi-page analysis. Returns confidence, sanitized evidence scoped to each page, caveats, provenance, explicit limits, and complete or partial coverage.
 func (s *IntelligenceService) GetTechStack(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/tech",
 		PathParams: []string{},
+		QueryParams: []string{"url", "domain", "mode", "max_pages", "skip_cache"},
+		HasBody: false,
+	}, params)
+}
+
+// Extract normalized metadata, link-preview assets, Open Graph and Twitter Card fields, canonical URL, robots directives, structured-data types, security headers, links, contacts, and declared profiles from a public URL.
+func (s *IntelligenceService) GetUrlIntelligence(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/url-intelligence",
+		PathParams: []string{},
+		QueryParams: []string{"url"},
+		HasBody: false,
+	}, params)
+}
+
+// Discover a website organization name, logo candidates, favicons, touch icons, preview image, theme color, manifest, and declared social profiles from public website metadata.
+func (s *IntelligenceService) GetWebsiteIdentityAssets(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/identity-assets",
+		PathParams: []string{},
+		QueryParams: []string{"domain"},
+		HasBody: false,
+	}, params)
+}
+
+// List recent short-lived technology scan jobs for the authenticated account.
+func (s *IntelligenceService) ListTechScanJobs(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/tech/jobs",
+		PathParams: []string{},
+		QueryParams: []string{"limit", "cursor"},
+		HasBody: false,
+	}, params)
+}
+
+// Run up to 10 ordered fast technology scans in one request. Each valid target is billed independently, and failed upstream scans are refunded independently.
+func (s *IntelligenceService) PostTechStackBulk(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/tech/bulk",
+		PathParams: []string{},
 		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// Resolve a company domain into public social, developer, creator, federated, and app-store identities explicitly declared by its website.
+func (s *IntelligenceService) ResolveInternetIdentity(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/identity-resolution",
+		PathParams: []string{},
+		QueryParams: []string{"domain"},
 		HasBody: false,
 	}, params)
 }
 
 type MetaService struct {
 	client *Client
+}
+
+// Cancel unstarted batch items and refund their item charges. An item already being processed may finish.
+func (s *MetaService) CancelApiBatch(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "DELETE",
+		Path: "/v1/batches/:job_id",
+		PathParams: []string{"job_id"},
+		QueryParams: []string{},
+		HasBody: false,
+	}, params)
+}
+
+// Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and failed items are refunded independently.
+func (s *MetaService) CreateApiBatch(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/batches",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// Download the full disposable email domain dataset in various formats.
+func (s *MetaService) DownloadEmailBlacklist(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/email/blacklist/download",
+		PathParams: []string{},
+		QueryParams: []string{"format"},
+		HasBody: false,
+	}, params)
+}
+
+// Get progress, item counts, billing settlement, webhook delivery state, and expiration for an account API batch.
+func (s *MetaService) GetApiBatch(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/batches/:job_id",
+		PathParams: []string{"job_id"},
+		QueryParams: []string{},
+		HasBody: false,
+	}, params)
+}
+
+// Get ordered JSON results or download all items as RFC 4180 CSV for an account API batch. Results and job metadata expire 24 hours after creation.
+func (s *MetaService) GetApiBatchResults(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/batches/:job_id/results",
+		PathParams: []string{"job_id"},
+		QueryParams: []string{"after", "limit", "format"},
+		HasBody: false,
+	}, params)
+}
+
+// Browse the disposable email domain dataset as a paginated data feed.
+func (s *MetaService) GetEmailBlacklistInfo(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/email/blacklist",
+		PathParams: []string{},
+		QueryParams: []string{"limit", "offset", "format"},
+		HasBody: false,
+	}, params)
 }
 
 // Get credit costs per endpoint and API pricing information.
@@ -708,8 +983,30 @@ func (s *MetaService) GetPricingInfo(ctx context.Context, params Params) (any, e
 	}, params)
 }
 
+// List unexpired asynchronous API batches for the active customer account.
+func (s *MetaService) ListApiBatches(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/batches",
+		PathParams: []string{},
+		QueryParams: []string{"limit"},
+		HasBody: false,
+	}, params)
+}
+
 type OsintService struct {
 	client *Client
+}
+
+// Query raw RDAP data for up to 10 domains, IP addresses, CIDR ranges, or autonomous system numbers. One query type applies to the whole batch.
+func (s *OsintService) BulkGetRdap(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/rdap/bulk",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
 }
 
 // Get WHOIS data for multiple domains at once.
@@ -720,28 +1017,6 @@ func (s *OsintService) BulkWhois(ctx context.Context, params Params) (any, error
 		PathParams: []string{},
 		QueryParams: []string{},
 		HasBody: true,
-	}, params)
-}
-
-// Find domains that use a specific nameserver.
-func (s *OsintService) GetDnsReverseNs(ctx context.Context, params Params) (any, error) {
-	return s.client.request(ctx, endpointDefinition{
-		Method: "GET",
-		Path: "/v1/dns/reverse/ns",
-		PathParams: []string{},
-		QueryParams: []string{},
-		HasBody: false,
-	}, params)
-}
-
-// Map domain relationships through shared infrastructure and registrant data.
-func (s *OsintService) GetDomainGraph(ctx context.Context, params Params) (any, error) {
-	return s.client.request(ctx, endpointDefinition{
-		Method: "GET",
-		Path: "/v1/graph",
-		PathParams: []string{},
-		QueryParams: []string{},
-		HasBody: false,
 	}, params)
 }
 
@@ -756,13 +1031,13 @@ func (s *OsintService) GetDomainLifecycle(ctx context.Context, params Params) (a
 	}, params)
 }
 
-// Get IP addresses with geolocation, ASN, and hosting provider information.
+// Get IP or resolved-domain geolocation and ASN data, provider security flags, coarse hosting classification, and FCrDNS. PTR-based signals are derived from the IP, never the caller hostname.
 func (s *OsintService) GetIpInfo(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/ip",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"ip", "domain"},
 		HasBody: false,
 	}, params)
 }
@@ -773,29 +1048,29 @@ func (s *OsintService) GetMacInfo(ctx context.Context, params Params) (any, erro
 		Method: "GET",
 		Path: "/v1/mac",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"mac"},
 		HasBody: false,
 	}, params)
 }
 
-// Find all domains hosted on a specific IP address.
-func (s *OsintService) GetReverseIp(ctx context.Context, params Params) (any, error) {
+// Returns parameter help and an example response for the MAC address lookup endpoint.
+func (s *OsintService) GetMacLookupInfo(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
-		Path: "/v1/reverse/ip",
+		Path: "/v1/mac/info",
 		PathParams: []string{},
 		QueryParams: []string{},
 		HasBody: false,
 	}, params)
 }
 
-// Find all domains using a specific mail server for email infrastructure mapping.
-func (s *OsintService) GetReverseMx(ctx context.Context, params Params) (any, error) {
+// Get raw RDAP response for a domain, IP address, or autonomous system number.
+func (s *OsintService) GetRdap(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
-		Path: "/v1/reverse/mx",
+		Path: "/v1/rdap",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"query", "type", "domain"},
 		HasBody: false,
 	}, params)
 }
@@ -806,12 +1081,12 @@ func (s *OsintService) GetWhois(ctx context.Context, params Params) (any, error)
 		Method: "GET",
 		Path: "/v1/whois",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain"},
 		HasBody: false,
 	}, params)
 }
 
-// Track WHOIS record changes over time. Shows registrar transfers, expiry extensions, nameserver changes, and privacy toggles. Data accumulates from API lookups.
+// Query the DomScan WHOIS observation log. A qualifying fresh, successful RDAP-backed GET /v1/whois or /v2/whois lookup can record at most one normalized snapshot per domain per UTC day. Cached responses, bulk lookups, history reads, and traditional WHOIS-only fallbacks do not add snapshots. This is not a global historical WHOIS archive and does not provide registrant identity or contact history.
 func (s *OsintService) GetWhoisHistory(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
@@ -826,7 +1101,7 @@ type PricingService struct {
 	client *Client
 }
 
-// Get pricing for multiple domains at once.
+// Read daily standard-price rows for multiple TLDs. Each unique TLD and selected registrar pair costs one credit.
 func (s *PricingService) BulkPricing(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "POST",
@@ -837,29 +1112,29 @@ func (s *PricingService) BulkPricing(ctx context.Context, params Params) (any, e
 	}, params)
 }
 
-// Compare domain prices across multiple registrars.
+// Compare daily standard-TLD rows and separate credential-backed exact-domain quotes without inferring missing operation prices.
 func (s *PricingService) ComparePrices(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/prices/compare",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "registrars", "skip_cache"},
 		HasBody: false,
 	}, params)
 }
 
-// Get domain registration and renewal prices across registrars.
+// Read daily standard-TLD price snapshots from verified official registrar sources. One credit is charged per unique TLD and selected registrar pair.
 func (s *PricingService) GetPrices(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/prices",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"tlds", "registrars", "skip_cache"},
 		HasBody: false,
 	}, params)
 }
 
-// Get list of supported registrars with pricing data.
+// List registrar metadata and identify which registrars currently have integrated DomScan pricing sources.
 func (s *PricingService) GetRegistrars(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
@@ -870,13 +1145,13 @@ func (s *PricingService) GetRegistrars(ctx context.Context, params Params) (any,
 	}, params)
 }
 
-// Get pricing for a specific TLD across registrars.
+// Read daily standard-price rows for one TLD, with registrar filters, provenance, freshness, and pair-based billing.
 func (s *PricingService) GetTldPricing(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/prices/tld/:tld",
 		PathParams: []string{"tld"},
-		QueryParams: []string{},
+		QueryParams: []string{"registrars", "skip_cache"},
 		HasBody: false,
 	}, params)
 }
@@ -885,112 +1160,112 @@ type RecipesService struct {
 	client *Client
 }
 
-// Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 6 credits.
+// Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 4 credits.
 func (s *RecipesService) RecipeBrandLaunch(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/recipes/brand-launch",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "brand_name", "platforms"},
 		HasBody: false,
 	}, params)
 }
 
-// Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 8 credits.
+// Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 5 credits.
 func (s *RecipesService) RecipeCompetitorIntel(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/recipes/competitor-intel",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "discover_subdomains", "analyze_email"},
 		HasBody: false,
 	}, params)
 }
 
-// Brand protection through strategic domain acquisition recommendations. Saves 10 credits.
+// Brand protection through strategic domain acquisition recommendations. Saves 8 credits.
 func (s *RecipesService) RecipeDefensiveRegistration(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/recipes/defensive-registration",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"brand", "owned_domains", "priority_tlds", "include_typos", "budget"},
 		HasBody: false,
 	}, params)
 }
 
-// Pre-migration checklist and current DNS configuration snapshot. Saves 6 credits.
+// Pre-migration checklist and current DNS configuration snapshot. Saves 5 credits.
 func (s *RecipesService) RecipeDnsMigration(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/recipes/dns-migration",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "target_nameservers", "critical_records"},
 		HasBody: false,
 	}, params)
 }
 
-// AI-powered domain discovery with filtering and availability checking. Saves 15 credits.
+// AI-powered domain discovery with filtering and availability checking. Saves 13 credits.
 func (s *RecipesService) RecipeDomainFinder(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/recipes/domain-finder",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"keywords", "tlds", "style", "max_length", "language", "limit"},
 		HasBody: false,
 	}, params)
 }
 
-// Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 8 credits vs individual calls.
+// Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 6 credits vs individual calls.
 func (s *RecipesService) RecipeDueDiligence(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/recipes/due-diligence",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "include_competitors"},
 		HasBody: false,
 	}, params)
 }
 
-// Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 7 credits.
+// Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 5 credits.
 func (s *RecipesService) RecipeEmailDeliverability(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/recipes/email-deliverability",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "dkim_selectors", "check_blacklists"},
 		HasBody: false,
 	}, params)
 }
 
-// Complete infrastructure mapping and attack surface analysis. Saves 13 credits.
+// Complete infrastructure mapping and attack surface analysis. Saves 10 credits.
 func (s *RecipesService) RecipeInfrastructureDiscovery(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/recipes/infrastructure-discovery",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "depth", "include_historical"},
 		HasBody: false,
 	}, params)
 }
 
-// Evidence collection and analysis for suspected phishing domains. Saves 12 credits.
+// Evidence collection and analysis for suspected phishing domains. Saves 10 credits.
 func (s *RecipesService) RecipePhishingInvestigation(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/recipes/phishing-investigation",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"suspicious_domain", "legitimate_domain", "collect_evidence"},
 		HasBody: false,
 	}, params)
 }
 
-// Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 280 credits.
+// Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 275 credits.
 func (s *RecipesService) RecipePortfolioAudit(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/recipes/portfolio-audit",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domains", "include_valuation", "include_health", "alert_expiring_days"},
 		HasBody: false,
 	}, params)
 }
@@ -1006,13 +1281,13 @@ func (s *RecipesService) RecipePortfolioAuditPost(ctx context.Context, params Pa
 	}, params)
 }
 
-// Comprehensive typosquatting and brand threat analysis for security teams. Saves 25 credits.
+// Comprehensive typosquatting and brand threat analysis for security teams. Saves 22 credits.
 func (s *RecipesService) RecipeThreatAssessment(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/recipes/threat-assessment",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "max_threats", "include_evidence"},
 		HasBody: false,
 	}, params)
 }
@@ -1032,24 +1307,46 @@ func (s *SecurityService) BulkEmailCheck(ctx context.Context, params Params) (an
 	}, params)
 }
 
+// Search Certificate Transparency data for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.
+func (s *SecurityService) BulkGetCertificates(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/certificates/bulk",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// Check SPF, DKIM, DMARC, MTA-STS, TLS-RPT, and recursive SPF behavior for up to 10 domains. Results preserve input order and include per-domain errors.
+func (s *SecurityService) BulkGetEmailAuth(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/email-auth/bulk",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// Run the passive subdomain evidence pipeline for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.
+func (s *SecurityService) BulkGetSubdomains(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/subdomains/bulk",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
 // Check if an email domain is on disposable/temporary email blacklists.
 func (s *SecurityService) CheckEmailBlacklist(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/email/check",
 		PathParams: []string{},
-		QueryParams: []string{},
-		HasBody: false,
-	}, params)
-}
-
-// Download the full email blacklist database in various formats.
-func (s *SecurityService) DownloadEmailBlacklist(ctx context.Context, params Params) (any, error) {
-	return s.client.request(ctx, endpointDefinition{
-		Method: "GET",
-		Path: "/v1/email/blacklist/download",
-		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"email", "checks"},
 		HasBody: false,
 	}, params)
 }
@@ -1060,40 +1357,51 @@ func (s *SecurityService) GetCertificates(ctx context.Context, params Params) (a
 		Method: "GET",
 		Path: "/v1/certificates",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "include_subdomains", "include_expired", "limit", "cursor"},
 		HasBody: false,
 	}, params)
 }
 
-// Check domain reputation across security feeds, blacklists, and threat intelligence.
+// Check domain reputation across DNS, TLS, blacklist, parking, web presence, and email signals with score confidence metadata.
 func (s *SecurityService) GetDomainReputation(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/reputation",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain"},
 		HasBody: false,
 	}, params)
 }
 
-// Check DMARC, SPF, and DKIM configurations for email security auditing.
+// Check DMARC, SPF, DKIM, MTA-STS, TLS-RPT, and recursive SPF behavior for email security auditing.
 func (s *SecurityService) GetEmailAuth(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/email-auth",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "selectors"},
 		HasBody: false,
 	}, params)
 }
 
-// Get information about the email blacklist database.
-func (s *SecurityService) GetEmailBlacklistInfo(ctx context.Context, params Params) (any, error) {
+// Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and proxy-backed mail security checks.
+func (s *SecurityService) GetEmailCompliance(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
-		Path: "/v1/email/blacklist",
+		Path: "/v1/email/compliance",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "selectors", "providers"},
+		HasBody: false,
+	}, params)
+}
+
+// Run a comprehensive live SSL/TLS audit for a domain, aggregating certificate, chain, revocation, HSTS, HTTP version, and TLS posture details.
+func (s *SecurityService) GetSslAudit(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/ssl/audit",
+		PathParams: []string{},
+		QueryParams: []string{"domain"},
 		HasBody: false,
 	}, params)
 }
@@ -1104,7 +1412,18 @@ func (s *SecurityService) GetSslChain(ctx context.Context, params Params) (any, 
 		Method: "GET",
 		Path: "/v1/ssl/chain",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain"},
+		HasBody: false,
+	}, params)
+}
+
+// Run a premium cached deep SSL/TLS scan for a domain. Returns a fresh cached result immediately when available, or starts a long-running scan and returns a signed polling token.
+func (s *SecurityService) GetSslDeepScan(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/ssl/deep-scan",
+		PathParams: []string{},
+		QueryParams: []string{"domain", "refresh", "profile"},
 		HasBody: false,
 	}, params)
 }
@@ -1115,29 +1434,29 @@ func (s *SecurityService) GetSslExpiring(ctx context.Context, params Params) (an
 		Method: "GET",
 		Path: "/v1/ssl/expiring",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "threshold_days"},
 		HasBody: false,
 	}, params)
 }
 
-// Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring.
+// Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring plus HSTS preload audit metadata.
 func (s *SecurityService) GetSslGrade(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/ssl/grade",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain"},
 		HasBody: false,
 	}, params)
 }
 
-// Discover subdomains using Certificate Transparency and DNS enumeration.
+// Return best-effort public hostname evidence from a sequential passive pipeline. Discovery tries crt.sh first, then can fall back to HackerTarget, ThreatMiner, the Wayback Machine, and CertSpotter. Results include their evidence source. DomScan does not brute-force names or crawl the target site, so coverage is incomplete.
 func (s *SecurityService) GetSubdomains(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/subdomains",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "sources", "verify", "include_wildcards", "limit", "prefer_cache"},
 		HasBody: false,
 	}, params)
 }
@@ -1148,12 +1467,45 @@ func (s *SecurityService) GetTyposquatting(ctx context.Context, params Params) (
 		Method: "GET",
 		Path: "/v1/typos",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"domain", "check_registered", "limit", "include_tld_swap"},
 		HasBody: false,
 	}, params)
 }
 
-// Verify email deliverability with syntax validation, MX lookup, disposable detection, and optional SMTP mailbox verification. Basic check costs 1 credit; full SMTP check costs 5 credits.
+// Find exposed software versions and deterministic web security misconfigurations using verified technology evidence, exact OSV package matching, CISA Known Exploited Vulnerabilities, FIRST EPSS, and isolated Edge Relay rendering. Results separate affected versions from configuration findings and preserve unknown coverage.
+func (s *SecurityService) GetVulnerabilities(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/vulnerabilities",
+		PathParams: []string{},
+		QueryParams: []string{"url", "domain", "mode"},
+		HasBody: false,
+	}, params)
+}
+
+// Validate, normalize, and enrich international phone numbers with country-specific coverage levels, offline numbering-plan, location, time-zone, original prefix-carrier, portability-support, dialing, short-number, service, and official allocation metadata. US NANPA and Canadian CNA/CNAC snapshots add NPA-NXX central office code status and original code-holder evidence. DomScan uses its own Edge Relay and free local datasets without paid or per-number third-party lookups. Results never claim current carrier, reachability, subscriber identity, or individual-number assignment.
+func (s *SecurityService) ValidatePhoneNumber(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/phone/validate",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and uses one DomScan Edge Relay batch with zero paid or per-number third-party lookups.
+func (s *SecurityService) ValidatePhoneNumbersBulk(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/phone/validate/bulk",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// Verify email deliverability with syntax validation, MX/null MX lookup, reserved/test-domain detection, provider typo suggestions, MX provider fingerprinting, SPF/DMARC/MTA-STS/TLS-RPT evidence, local-part/domain intelligence, toxic/do-not-mail signals, confidence scoring, and industry-style deliverability status. Mailbox-level SMTP probing is deprecated and is not charged or performed.
 func (s *SecurityService) VerifyEmail(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
@@ -1179,11 +1531,33 @@ type SocialService struct {
 	client *Client
 }
 
-// Check username availability across social platforms like GitHub, Reddit, and more.
+// Check up to 10 social handles or resource identifiers in one request at the normal 2-credit rate per valid item, with no bulk discount. Invalid items return per-item errors and are not billed.
+func (s *SocialService) BulkCheckSocialHandles(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/social/bulk",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
+// Check username availability across social, developer, creator, and community platforms. Optionally resolve repositories, subreddits, Discord invites, Substack profiles, and federated accounts.
 func (s *SocialService) CheckSocialHandles(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/social",
+		PathParams: []string{},
+		QueryParams: []string{"handle", "platforms", "resources"},
+		HasBody: false,
+	}, params)
+}
+
+// Returns supported username platforms, resource types, parameters, and examples for the social intelligence endpoint.
+func (s *SocialService) GetSocialInfo(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/social/info",
 		PathParams: []string{},
 		QueryParams: []string{},
 		HasBody: false,

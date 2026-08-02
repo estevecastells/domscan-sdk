@@ -82,7 +82,7 @@ class DomScan:
     api_key: Optional[str] = None,
     base_url: str = "https://domscan.net",
     timeout: float = 10.0,
-    user_agent: str = "domscan-python/0.1.0",
+    user_agent: str = "domscan-python/0.2.0",
     headers: Optional[Mapping[str, str]] = None,
   ) -> None:
     self.api_key = api_key or os.getenv("DOMSCAN_API_KEY")
@@ -196,9 +196,15 @@ class DomScan:
 
   @staticmethod
   def _decode_payload(body: bytes, content_type: str) -> Any:
-    if "application/json" in content_type:
-      return json.loads(body.decode("utf-8"))
-    return body.decode("utf-8")
+    text = body.decode("utf-8")
+    if not text:
+      return ""
+    if "json" in content_type:
+      try:
+        return json.loads(text)
+      except json.JSONDecodeError:
+        return text
+    return text
 
   @staticmethod
   def _serialize_query_value(value: QueryValue) -> str:

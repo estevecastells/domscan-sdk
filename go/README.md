@@ -2,12 +2,12 @@
 
 Official Go client for the [DomScan API](https://domscan.net/docs).
 
-This SDK is generated from the shared endpoint manifest in this repository and covers the same 79 public non-session endpoints as the other official DomScan SDKs.
+This SDK is generated from the shared endpoint manifest in this repository and covers the same 113 public non-session endpoints as the other official DomScan SDKs.
 
 ## Installation
 
 ```bash
-go get github.com/estevecastells/domscan-sdk/go
+go get github.com/estevecastells/domscan-sdk/go@v0.2.0
 ```
 
 ## Quick Start

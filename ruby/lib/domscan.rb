@@ -27,7 +27,7 @@ module DomScan
   class Client
     attr_reader :availability, :dns, :domain, :intelligence, :meta, :osint, :pricing, :recipes, :security, :social
 
-    def initialize(api_key: ENV["DOMSCAN_API_KEY"], base_url: "https://domscan.net", timeout: 10, headers: {}, user_agent: "domscan-ruby/0.1.0")
+    def initialize(api_key: ENV["DOMSCAN_API_KEY"], base_url: "https://domscan.net", timeout: 10, headers: {}, user_agent: "domscan-ruby/0.2.0")
       @api_key = api_key
       @base_url = base_url.sub(%r{/+$}, "")
       @timeout = timeout
@@ -154,9 +154,9 @@ module DomScan
       @client.request({"title":"Bulk Domain Check","description":"Check availability of multiple complete domain names at once.","method":"POST","path":"/v1/status/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
     end
 
-    # Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results.
+    # Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results. Primary format: name + tlds. Single-domain shortcut: domain=example.com.
     def check_domain_availability(params = {})
-      @client.request({"title":"Domain Availability","description":"Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results.","method":"GET","path":"/v1/status","pathParams":[],"queryParams":["name","tlds","prefer_cache"],"hasBody":false}, params)
+      @client.request({"title":"Domain Availability","description":"Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results. Primary format: name + tlds. Single-domain shortcut: domain=example.com.","method":"GET","path":"/v1/status","pathParams":[],"queryParams":["name","tlds","domain","prefer_cache"],"hasBody":false}, params)
     end
 
     # Get information about which TLDs are supported and their RDAP server status.
@@ -176,14 +176,19 @@ module DomScan
       @client.request({"title":"SPF Builder","description":"Build an SPF record from configuration options with validation and recommendations.","method":"POST","path":"/v1/tools/spf/build","pathParams":[],"queryParams":[],"hasBody":true}, params)
     end
 
+    # Compare answers from the configured public recursive DNS resolvers for up to 10 domains. Results preserve input order and report per-domain errors.
+    def bulk_dns_propagation(params = {})
+      @client.request({"title":"Bulk DNS Resolver Comparison","description":"Compare answers from the configured public recursive DNS resolvers for up to 10 domains. Results preserve input order and report per-domain errors.","method":"POST","path":"/v1/dns/propagation/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
     # Check a specific DKIM selector for a domain and validate the public key.
     def check_dkim(params = {})
-      @client.request({"title":"DKIM Check","description":"Check a specific DKIM selector for a domain and validate the public key.","method":"GET","path":"/v1/tools/dkim/check","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"DKIM Check","description":"Check a specific DKIM selector for a domain and validate the public key.","method":"GET","path":"/v1/tools/dkim/check","pathParams":[],"queryParams":["domain","selector"],"hasBody":false}, params)
     end
 
     # Discover DKIM selectors for a domain by checking common selector names.
     def discover_dkim(params = {})
-      @client.request({"title":"DKIM Discovery","description":"Discover DKIM selectors for a domain by checking common selector names.","method":"GET","path":"/v1/tools/dkim/discover","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"DKIM Discovery","description":"Discover DKIM selectors for a domain by checking common selector names.","method":"GET","path":"/v1/tools/dkim/discover","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
     end
 
     # Flatten SPF record by resolving all includes into IP addresses to reduce DNS lookups.
@@ -191,39 +196,34 @@ module DomScan
       @client.request({"title":"SPF Flattener","description":"Flatten SPF record by resolving all includes into IP addresses to reduce DNS lookups.","method":"POST","path":"/v1/tools/spf/flatten","pathParams":[],"queryParams":[],"hasBody":true}, params)
     end
 
-    # Get all DNS record types for a domain in a single call.
+    # Get all major DNS record types for a domain in a single call with IPv6 parity, TXT classification, wildcard probe, and warning signals.
     def get_all_dns_records(params = {})
-      @client.request({"title":"DNS All Records","description":"Get all DNS record types for a domain in a single call.","method":"GET","path":"/v1/dns/all","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"DNS All Records","description":"Get all major DNS record types for a domain in a single call with IPv6 parity, TXT classification, wildcard probe, and warning signals.","method":"GET","path":"/v1/dns/all","pathParams":[],"queryParams":["domain","wildcard_probe"],"hasBody":false}, params)
     end
 
-    # Compare DNS records between two dates to see what changed.
-    def get_dns_diff(params = {})
-      @client.request({"title":"DNS Diff","description":"Compare DNS records between two dates to see what changed.","method":"GET","path":"/v1/dns/diff","pathParams":[],"queryParams":[],"hasBody":false}, params)
-    end
-
-    # Track DNS record changes over time. Data accumulates from API lookups.
+    # Review day-level DNS record values observed by successful DomScan DNS lookups. This lookup-driven observation log can miss changes between lookups and does not include external passive DNS sources.
     def get_dns_history(params = {})
-      @client.request({"title":"DNS History","description":"Track DNS record changes over time. Data accumulates from API lookups.","method":"GET","path":"/v1/dns/history","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"DNS History","description":"Review day-level DNS record values observed by successful DomScan DNS lookups. This lookup-driven observation log can miss changes between lookups and does not include external passive DNS sources.","method":"GET","path":"/v1/dns/history","pathParams":[],"queryParams":["domain","type","from","to","limit"],"hasBody":false}, params)
     end
 
-    # Check DNS propagation across multiple global DNS servers.
+    # Compare DNS answers from DomScan's configured Cloudflare and Google public recursive DoH providers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
     def get_dns_propagation(params = {})
-      @client.request({"title":"DNS Propagation","description":"Check DNS propagation across multiple global DNS servers.","method":"GET","path":"/v1/dns/propagation","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"DNS Resolver Comparison","description":"Compare DNS answers from DomScan's configured Cloudflare and Google public recursive DoH providers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.","method":"GET","path":"/v1/dns/propagation","pathParams":[],"queryParams":["domain","type","expected"],"hasBody":false}, params)
     end
 
-    # Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically.
+    # Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically with TXT classification and additive warning signals.
     def get_dns_records(params = {})
-      @client.request({"title":"DNS Lookup","description":"Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically.","method":"GET","path":"/v1/dns","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"DNS Lookup","description":"Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically with TXT classification and additive warning signals.","method":"GET","path":"/v1/dns","pathParams":[],"queryParams":["domain","type"],"hasBody":false}, params)
     end
 
-    # Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, and CAA records.
+    # Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, CAA, MTA-STS, TLS-RPT, resolver latency, and AXFR exposure.
     def get_dns_security(params = {})
-      @client.request({"title":"DNS Security","description":"Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, and CAA records.","method":"GET","path":"/v1/dns/security","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"DNS Security","description":"Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, CAA, MTA-STS, TLS-RPT, resolver latency, and AXFR exposure.","method":"GET","path":"/v1/dns/security","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
     end
 
-    # Get list of global DNS servers used for propagation checks.
+    # List the public recursive DoH providers used for resolver comparison. These are global anycast services, not geographic probes.
     def get_dns_servers(params = {})
-      @client.request({"title":"DNS Servers","description":"Get list of global DNS servers used for propagation checks.","method":"GET","path":"/v1/dns/servers","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"DNS Resolver Providers","description":"List the public recursive DoH providers used for resolver comparison. These are global anycast services, not geographic probes.","method":"GET","path":"/v1/dns/servers","pathParams":[],"queryParams":[],"hasBody":false}, params)
     end
 
     # Validate a DMARC record for syntax errors and configuration issues.
@@ -243,39 +243,64 @@ module DomScan
       @client.request({"title":"Bulk Domain Valuation","description":"Get value estimates for multiple domains at once.","method":"POST","path":"/v1/value/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
     end
 
+    # Get normalized RDAP registration data: registrar, dates, nameservers, DNSSEC status.
+    def bulk_get_domain_profile(params = {})
+      @client.request({"title":"Domain Profile","description":"Get normalized RDAP registration data: registrar, dates, nameservers, DNSSEC status.","method":"POST","path":"/v1/profile/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # Compare up to 50 candidate brand names and return ranked scores.
+    def compare_brand_names(params = {})
+      @client.request({"title":"Compare Brand Names","description":"Compare up to 50 candidate brand names and return ranked scores.","method":"POST","path":"/v1/score/compare","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
     # Compare two domains side-by-side across multiple metrics and attributes.
     def compare_domains(params = {})
-      @client.request({"title":"Domain Compare","description":"Compare two domains side-by-side across multiple metrics and attributes.","method":"GET","path":"/v1/compare","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Domain Compare","description":"Compare two domains side-by-side across multiple metrics and attributes.","method":"GET","path":"/v1/compare","pathParams":[],"queryParams":["domains"],"hasBody":false}, params)
     end
 
-    # Comprehensive health checks: DNS, SSL, email deliverability, security headers, and more.
+    # Comprehensive health checks with DNS, SSL, email, proxy-enriched TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
     def get_domain_health(params = {})
-      @client.request({"title":"Domain Health","description":"Comprehensive health checks: DNS, SSL, email deliverability, security headers, and more.","method":"GET","path":"/v1/health","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Domain Health","description":"Comprehensive health checks with DNS, SSL, email, proxy-enriched TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.","method":"GET","path":"/v1/health","pathParams":[],"queryParams":["domain","details"],"hasBody":false}, params)
     end
 
-    # Comprehensive domain intelligence in one call: DNS, WHOIS, health, and reputation data aggregated into a single response.
+    # Aggregate DNS, RDAP registration, health, reputation, and popularity observations in one response, with null unknowns and per-component freshness.
     def get_domain_overview(params = {})
-      @client.request({"title":"Domain Overview","description":"Comprehensive domain intelligence in one call: DNS, WHOIS, health, and reputation data aggregated into a single response.","method":"GET","path":"/v1/overview","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Domain Overview","description":"Aggregate DNS, RDAP registration, health, reputation, and popularity observations in one response, with null unknowns and per-component freshness.","method":"GET","path":"/v1/overview","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
+    end
+
+    # Get the current research-grade Tranco rank and bucket for a domain, with explicit ranked, unranked, and unknown states, source date, cache state, and optional lookup-driven history.
+    def get_domain_popularity(params = {})
+      @client.request({"title":"Domain Popularity","description":"Get the current research-grade Tranco rank and bucket for a domain, with explicit ranked, unranked, and unknown states, source date, cache state, and optional lookup-driven history.","method":"GET","path":"/v1/popularity","pathParams":[],"queryParams":["domain","include_history","history_limit"],"hasBody":false}, params)
+    end
+
+    # Read prior Tranco observations recorded by DomScan lookups. This is a lookup-driven history, not a complete daily rank series.
+    def get_domain_popularity_history(params = {})
+      @client.request({"title":"Domain Popularity History","description":"Read prior Tranco observations recorded by DomScan lookups. This is a lookup-driven history, not a complete daily rank series.","method":"GET","path":"/v1/popularity/history","pathParams":[],"queryParams":["domain","limit"],"hasBody":false}, params)
     end
 
     # Get normalized RDAP registration data: registrar, dates, nameservers, DNSSEC status.
     def get_domain_profile(params = {})
-      @client.request({"title":"Domain Profile","description":"Get normalized RDAP registration data: registrar, dates, nameservers, DNSSEC status.","method":"GET","path":"/v1/profile","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Domain Profile","description":"Get normalized RDAP registration data: registrar, dates, nameservers, DNSSEC status.","method":"GET","path":"/v1/profile","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
     end
 
     # Calculate an overall domain quality score based on multiple factors.
     def get_domain_score(params = {})
-      @client.request({"title":"Domain Score","description":"Calculate an overall domain quality score based on multiple factors.","method":"GET","path":"/v1/score","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Domain Score","description":"Calculate an overall domain quality score based on multiple factors.","method":"GET","path":"/v1/score","pathParams":[],"queryParams":["name","domain"],"hasBody":false}, params)
     end
 
     # Algorithmic domain value estimates based on length, TLD tier, dictionary words, and brandability.
     def get_domain_value(params = {})
-      @client.request({"title":"Domain Valuation","description":"Algorithmic domain value estimates based on length, TLD tier, dictionary words, and brandability.","method":"GET","path":"/v1/value","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Domain Valuation","description":"Algorithmic domain value estimates based on length, TLD tier, dictionary words, and brandability.","method":"GET","path":"/v1/value","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
     end
 
     # Fast health check with essential metrics only.
     def get_quick_health(params = {})
-      @client.request({"title":"Quick Health Check","description":"Fast health check with essential metrics only.","method":"GET","path":"/v1/health/quick","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Quick Health Check","description":"Fast health check with essential metrics only.","method":"GET","path":"/v1/health/quick","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
+    end
+
+    # Returns scoring dimensions, grade scale, and related scoring endpoints.
+    def get_score_info(params = {})
+      @client.request({"title":"Brand Scoring Reference","description":"Returns scoring dimensions, grade scale, and related scoring endpoints.","method":"GET","path":"/v1/score/info","pathParams":[],"queryParams":[],"hasBody":false}, params)
     end
 
     # Get detailed information about a specific TLD.
@@ -285,19 +310,44 @@ module DomScan
 
     # Get list of all supported TLDs with metadata.
     def get_tlds(params = {})
-      @client.request({"title":"TLD List","description":"Get list of all supported TLDs with metadata.","method":"GET","path":"/v1/tlds","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"TLD List","description":"Get list of all supported TLDs with metadata.","method":"GET","path":"/v1/tlds","pathParams":[],"queryParams":["type"],"hasBody":false}, params)
     end
 
     # AI-powered domain name generator. Get brandable, short, and keyword-rich suggestions based on your keywords.
     def suggest_domains(params = {})
-      @client.request({"title":"Domain Suggestions","description":"AI-powered domain name generator. Get brandable, short, and keyword-rich suggestions based on your keywords.","method":"GET","path":"/v1/suggest","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Domain Suggestions","description":"AI-powered domain name generator. Get brandable, short, and keyword-rich suggestions based on your keywords.","method":"GET","path":"/v1/suggest","pathParams":[],"queryParams":["keywords","tlds","style","industry","language","limit","check"],"hasBody":false}, params)
     end
   end
 
   class IntelligenceService < Service
-    # Classify websites into 350+ IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.
+    # Detect hosting, CDN, WAF, DNS, and email infrastructure for up to 10 domains. Results preserve input order and include per-domain errors.
+    def bulk_get_hosting(params = {})
+      @client.request({"title":"Bulk Hosting Detection","description":"Detect hosting, CDN, WAF, DNS, and email infrastructure for up to 10 domains. Results preserve input order and include per-domain errors.","method":"POST","path":"/v1/hosting/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # Extract normalized URL intelligence for up to 10 public URLs. Results preserve input order and include per-item errors.
+    def bulk_get_url_intelligence(params = {})
+      @client.request({"title":"Bulk Unified URL Intelligence","description":"Extract normalized URL intelligence for up to 10 public URLs. Results preserve input order and include per-item errors.","method":"POST","path":"/v1/url-intelligence/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # Extract website identity assets for up to 10 domains. Results preserve input order and include per-item errors.
+    def bulk_get_website_identity_assets(params = {})
+      @client.request({"title":"Bulk Website Identity Assets","description":"Extract website identity assets for up to 10 domains. Results preserve input order and include per-item errors.","method":"POST","path":"/v1/identity-assets/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # Resolve public identities for up to 10 company domains. Results preserve input order and include per-item errors.
+    def bulk_resolve_internet_identity(params = {})
+      @client.request({"title":"Bulk Internet Identity Resolution","description":"Resolve public identities for up to 10 company domains. Results preserve input order and include per-item errors.","method":"POST","path":"/v1/identity-resolution/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # Cancel unstarted technology scan work and settle item-level refunds. An already running browser scan may finish, but its result is discarded.
+    def cancel_tech_scan_job(params = {})
+      @client.request({"title":"Cancel Async Tech Scan Job","description":"Cancel unstarted technology scan work and settle item-level refunds. An already running browser scan may finish, but its result is discarded.","method":"DELETE","path":"/v1/tech/jobs/:job_id","pathParams":["job_id"],"queryParams":[],"hasBody":false}, params)
+    end
+
+    # Classify websites into DomScan IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.
     def categorize_website(params = {})
-      @client.request({"title":"Website Categorization","description":"Classify websites into 350+ IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.","method":"GET","path":"/v1/categorize","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Website Categorization","description":"Classify websites into DomScan IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.","method":"GET","path":"/v1/categorize","pathParams":[],"queryParams":["url","domain","skip_cache","min_confidence"],"hasBody":false}, params)
     end
 
     # Categorize up to 10 websites in parallel with caching.
@@ -305,19 +355,29 @@ module DomScan
       @client.request({"title":"Bulk Website Categorization","description":"Categorize up to 10 websites in parallel with caching.","method":"POST","path":"/v1/categorize/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
     end
 
+    # Create a durable asynchronous technology scan job for up to 100 public targets. Supports fast, JavaScript-rendered, and bounded same-origin deep modes with item-level billing and refunds.
+    def create_tech_scan_job(params = {})
+      @client.request({"title":"Create Async Tech Scan Job","description":"Create a durable asynchronous technology scan job for up to 100 public targets. Supports fast, JavaScript-rendered, and bounded same-origin deep modes with item-level billing and refunds.","method":"POST","path":"/v1/tech/jobs","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # List the DomScan IAB-inspired category IDs, response category names, taxonomy names, and subcategories returned by the Website Categorization API.
+    def get_categorization_taxonomy(params = {})
+      @client.request({"title":"Categorization Taxonomy","description":"List the DomScan IAB-inspired category IDs, response category names, taxonomy names, and subcategories returned by the Website Categorization API.","method":"GET","path":"/v1/categorize/taxonomy","pathParams":[],"queryParams":[],"hasBody":false}, params)
+    end
+
     # Extract company information from a domain. Get name, industry, and contact details.
     def get_company(params = {})
-      @client.request({"title":"Company Lookup","description":"Extract company information from a domain. Get name, industry, and contact details.","method":"GET","path":"/v1/company","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Company Lookup","description":"Extract company information from a domain. Get name, industry, and contact details.","method":"GET","path":"/v1/company","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
     end
 
     # Compare domains for similarity. Detect typosquatting with multiple algorithms.
     def get_domain_similarity(params = {})
-      @client.request({"title":"Domain Similarity","description":"Compare domains for similarity. Detect typosquatting with multiple algorithms.","method":"GET","path":"/v1/similarity","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Domain Similarity","description":"Compare domains for similarity. Detect typosquatting with multiple algorithms.","method":"GET","path":"/v1/similarity","pathParams":[],"queryParams":["domain1","domain2"],"hasBody":false}, params)
     end
 
     # Detect hosting provider, CDN, WAF, DNS provider, and email infrastructure.
     def get_hosting(params = {})
-      @client.request({"title":"Hosting Detection","description":"Detect hosting provider, CDN, WAF, DNS provider, and email infrastructure.","method":"GET","path":"/v1/hosting","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Hosting Detection","description":"Detect hosting provider, CDN, WAF, DNS provider, and email infrastructure.","method":"GET","path":"/v1/hosting","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
     end
 
     # Detect if a domain is parked or listed for sale on aftermarket platforms. Identifies parking providers via DNS, HTTP redirect, and HTML content analysis.
@@ -327,36 +387,101 @@ module DomScan
 
     # Follow URL redirect chains. Detect HTTPS upgrades, domain changes, and landing pages.
     def get_redirects(params = {})
-      @client.request({"title":"Redirect Chain","description":"Follow URL redirect chains. Detect HTTPS upgrades, domain changes, and landing pages.","method":"GET","path":"/v1/redirects","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Redirect Chain","description":"Follow URL redirect chains. Detect HTTPS upgrades, domain changes, and landing pages.","method":"GET","path":"/v1/redirects","pathParams":[],"queryParams":["url","domain"],"hasBody":false}, params)
     end
 
-    # Detect website technologies: CDN, CMS, frameworks, analytics, and more.
+    # Get owner-scoped progress, item counts, billing settlement, and expiration details for a technology scan job.
+    def get_tech_scan_job(params = {})
+      @client.request({"title":"Get Async Tech Scan Job","description":"Get owner-scoped progress, item counts, billing settlement, and expiration details for a technology scan job.","method":"GET","path":"/v1/tech/jobs/:job_id","pathParams":["job_id"],"queryParams":[],"hasBody":false}, params)
+    end
+
+    # Get ordered, signed-cursor-paginated results for a technology scan job. Full results expire after 48 hours and operational job records expire after seven days.
+    def get_tech_scan_job_results(params = {})
+      @client.request({"title":"Get Async Tech Scan Results","description":"Get ordered, signed-cursor-paginated results for a technology scan job. Full results expire after 48 hours and operational job records expire after seven days.","method":"GET","path":"/v1/tech/jobs/:job_id/results","pathParams":["job_id"],"queryParams":["cursor","limit"],"hasBody":false}, params)
+    end
+
+    # Detect 500+ verified website technologies across 80+ categories using bounded HTTP signals, rendered JavaScript globals, observed network URLs, and same-origin multi-page analysis. Returns confidence, sanitized evidence scoped to each page, caveats, provenance, explicit limits, and complete or partial coverage.
     def get_tech_stack(params = {})
-      @client.request({"title":"Tech Stack Detection","description":"Detect website technologies: CDN, CMS, frameworks, analytics, and more.","method":"GET","path":"/v1/tech","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Tech Stack Detection","description":"Detect 500+ verified website technologies across 80+ categories using bounded HTTP signals, rendered JavaScript globals, observed network URLs, and same-origin multi-page analysis. Returns confidence, sanitized evidence scoped to each page, caveats, provenance, explicit limits, and complete or partial coverage.","method":"GET","path":"/v1/tech","pathParams":[],"queryParams":["url","domain","mode","max_pages","skip_cache"],"hasBody":false}, params)
+    end
+
+    # Extract normalized metadata, link-preview assets, Open Graph and Twitter Card fields, canonical URL, robots directives, structured-data types, security headers, links, contacts, and declared profiles from a public URL.
+    def get_url_intelligence(params = {})
+      @client.request({"title":"Unified URL Intelligence","description":"Extract normalized metadata, link-preview assets, Open Graph and Twitter Card fields, canonical URL, robots directives, structured-data types, security headers, links, contacts, and declared profiles from a public URL.","method":"GET","path":"/v1/url-intelligence","pathParams":[],"queryParams":["url"],"hasBody":false}, params)
+    end
+
+    # Discover a website organization name, logo candidates, favicons, touch icons, preview image, theme color, manifest, and declared social profiles from public website metadata.
+    def get_website_identity_assets(params = {})
+      @client.request({"title":"Website Identity Assets","description":"Discover a website organization name, logo candidates, favicons, touch icons, preview image, theme color, manifest, and declared social profiles from public website metadata.","method":"GET","path":"/v1/identity-assets","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
+    end
+
+    # List recent short-lived technology scan jobs for the authenticated account.
+    def list_tech_scan_jobs(params = {})
+      @client.request({"title":"List Async Tech Scan Jobs","description":"List recent short-lived technology scan jobs for the authenticated account.","method":"GET","path":"/v1/tech/jobs","pathParams":[],"queryParams":["limit","cursor"],"hasBody":false}, params)
+    end
+
+    # Run up to 10 ordered fast technology scans in one request. Each valid target is billed independently, and failed upstream scans are refunded independently.
+    def post_tech_stack_bulk(params = {})
+      @client.request({"title":"Bulk Tech Stack Detection","description":"Run up to 10 ordered fast technology scans in one request. Each valid target is billed independently, and failed upstream scans are refunded independently.","method":"POST","path":"/v1/tech/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # Resolve a company domain into public social, developer, creator, federated, and app-store identities explicitly declared by its website.
+    def resolve_internet_identity(params = {})
+      @client.request({"title":"Internet Identity Resolution","description":"Resolve a company domain into public social, developer, creator, federated, and app-store identities explicitly declared by its website.","method":"GET","path":"/v1/identity-resolution","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
     end
   end
 
   class MetaService < Service
+    # Cancel unstarted batch items and refund their item charges. An item already being processed may finish.
+    def cancel_api_batch(params = {})
+      @client.request({"title":"Cancel Async API Batch","description":"Cancel unstarted batch items and refund their item charges. An item already being processed may finish.","method":"DELETE","path":"/v1/batches/:job_id","pathParams":["job_id"],"queryParams":[],"hasBody":false}, params)
+    end
+
+    # Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and failed items are refunded independently.
+    def create_api_batch(params = {})
+      @client.request({"title":"Create Async API Batch","description":"Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and failed items are refunded independently.","method":"POST","path":"/v1/batches","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # Download the full disposable email domain dataset in various formats.
+    def download_email_blacklist(params = {})
+      @client.request({"title":"Download Disposable Email Dataset","description":"Download the full disposable email domain dataset in various formats.","method":"GET","path":"/v1/email/blacklist/download","pathParams":[],"queryParams":["format"],"hasBody":false}, params)
+    end
+
+    # Get progress, item counts, billing settlement, webhook delivery state, and expiration for an account API batch.
+    def get_api_batch(params = {})
+      @client.request({"title":"Get Async API Batch","description":"Get progress, item counts, billing settlement, webhook delivery state, and expiration for an account API batch.","method":"GET","path":"/v1/batches/:job_id","pathParams":["job_id"],"queryParams":[],"hasBody":false}, params)
+    end
+
+    # Get ordered JSON results or download all items as RFC 4180 CSV for an account API batch. Results and job metadata expire 24 hours after creation.
+    def get_api_batch_results(params = {})
+      @client.request({"title":"Get Async API Batch Results","description":"Get ordered JSON results or download all items as RFC 4180 CSV for an account API batch. Results and job metadata expire 24 hours after creation.","method":"GET","path":"/v1/batches/:job_id/results","pathParams":["job_id"],"queryParams":["after","limit","format"],"hasBody":false}, params)
+    end
+
+    # Browse the disposable email domain dataset as a paginated data feed.
+    def get_email_blacklist_info(params = {})
+      @client.request({"title":"Disposable Email Dataset","description":"Browse the disposable email domain dataset as a paginated data feed.","method":"GET","path":"/v1/email/blacklist","pathParams":[],"queryParams":["limit","offset","format"],"hasBody":false}, params)
+    end
+
     # Get credit costs per endpoint and API pricing information.
     def get_pricing_info(params = {})
       @client.request({"title":"API Pricing Info","description":"Get credit costs per endpoint and API pricing information.","method":"GET","path":"/v1/pricing","pathParams":[],"queryParams":[],"hasBody":false}, params)
     end
+
+    # List unexpired asynchronous API batches for the active customer account.
+    def list_api_batches(params = {})
+      @client.request({"title":"List Async API Batches","description":"List unexpired asynchronous API batches for the active customer account.","method":"GET","path":"/v1/batches","pathParams":[],"queryParams":["limit"],"hasBody":false}, params)
+    end
   end
 
   class OsintService < Service
+    # Query raw RDAP data for up to 10 domains, IP addresses, CIDR ranges, or autonomous system numbers. One query type applies to the whole batch.
+    def bulk_get_rdap(params = {})
+      @client.request({"title":"Bulk RDAP Lookup","description":"Query raw RDAP data for up to 10 domains, IP addresses, CIDR ranges, or autonomous system numbers. One query type applies to the whole batch.","method":"POST","path":"/v1/rdap/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
     # Get WHOIS data for multiple domains at once.
     def bulk_whois(params = {})
       @client.request({"title":"Bulk WHOIS Lookup","description":"Get WHOIS data for multiple domains at once.","method":"POST","path":"/v1/whois/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
-    end
-
-    # Find domains that use a specific nameserver.
-    def get_dns_reverse_ns(params = {})
-      @client.request({"title":"Reverse NS Lookup","description":"Find domains that use a specific nameserver.","method":"GET","path":"/v1/dns/reverse/ns","pathParams":[],"queryParams":[],"hasBody":false}, params)
-    end
-
-    # Map domain relationships through shared infrastructure and registrant data.
-    def get_domain_graph(params = {})
-      @client.request({"title":"Domain Graph","description":"Map domain relationships through shared infrastructure and registrant data.","method":"GET","path":"/v1/graph","pathParams":[],"queryParams":[],"hasBody":false}, params)
     end
 
     # Get domain lifecycle information including registration date, expiration date, age, and lifecycle phase. Returns Fastly-style status flags.
@@ -364,113 +489,113 @@ module DomScan
       @client.request({"title":"Domain Lifecycle","description":"Get domain lifecycle information including registration date, expiration date, age, and lifecycle phase. Returns Fastly-style status flags.","method":"GET","path":"/v1/lifecycle","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
     end
 
-    # Get IP addresses with geolocation, ASN, and hosting provider information.
+    # Get IP or resolved-domain geolocation and ASN data, provider security flags, coarse hosting classification, and FCrDNS. PTR-based signals are derived from the IP, never the caller hostname.
     def get_ip_info(params = {})
-      @client.request({"title":"IP Geolocation","description":"Get IP addresses with geolocation, ASN, and hosting provider information.","method":"GET","path":"/v1/ip","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"IP Geolocation","description":"Get IP or resolved-domain geolocation and ASN data, provider security flags, coarse hosting classification, and FCrDNS. PTR-based signals are derived from the IP, never the caller hostname.","method":"GET","path":"/v1/ip","pathParams":[],"queryParams":["ip","domain"],"hasBody":false}, params)
     end
 
     # Lookup MAC address vendor information. Identify network device manufacturers.
     def get_mac_info(params = {})
-      @client.request({"title":"MAC Address Lookup","description":"Lookup MAC address vendor information. Identify network device manufacturers.","method":"GET","path":"/v1/mac","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"MAC Address Lookup","description":"Lookup MAC address vendor information. Identify network device manufacturers.","method":"GET","path":"/v1/mac","pathParams":[],"queryParams":["mac"],"hasBody":false}, params)
     end
 
-    # Find all domains hosted on a specific IP address.
-    def get_reverse_ip(params = {})
-      @client.request({"title":"Reverse IP Lookup","description":"Find all domains hosted on a specific IP address.","method":"GET","path":"/v1/reverse/ip","pathParams":[],"queryParams":[],"hasBody":false}, params)
+    # Returns parameter help and an example response for the MAC address lookup endpoint.
+    def get_mac_lookup_info(params = {})
+      @client.request({"title":"MAC Lookup Reference","description":"Returns parameter help and an example response for the MAC address lookup endpoint.","method":"GET","path":"/v1/mac/info","pathParams":[],"queryParams":[],"hasBody":false}, params)
     end
 
-    # Find all domains using a specific mail server for email infrastructure mapping.
-    def get_reverse_mx(params = {})
-      @client.request({"title":"Reverse MX Lookup","description":"Find all domains using a specific mail server for email infrastructure mapping.","method":"GET","path":"/v1/reverse/mx","pathParams":[],"queryParams":[],"hasBody":false}, params)
+    # Get raw RDAP response for a domain, IP address, or autonomous system number.
+    def get_rdap(params = {})
+      @client.request({"title":"RDAP Lookup","description":"Get raw RDAP response for a domain, IP address, or autonomous system number.","method":"GET","path":"/v1/rdap","pathParams":[],"queryParams":["query","type","domain"],"hasBody":false}, params)
     end
 
     # Get structured WHOIS/RDAP registration data for a domain.
     def get_whois(params = {})
-      @client.request({"title":"WHOIS Lookup","description":"Get structured WHOIS/RDAP registration data for a domain.","method":"GET","path":"/v1/whois","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"WHOIS Lookup","description":"Get structured WHOIS/RDAP registration data for a domain.","method":"GET","path":"/v1/whois","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
     end
 
-    # Track WHOIS record changes over time. Shows registrar transfers, expiry extensions, nameserver changes, and privacy toggles. Data accumulates from API lookups.
+    # Query the DomScan WHOIS observation log. A qualifying fresh, successful RDAP-backed GET /v1/whois or /v2/whois lookup can record at most one normalized snapshot per domain per UTC day. Cached responses, bulk lookups, history reads, and traditional WHOIS-only fallbacks do not add snapshots. This is not a global historical WHOIS archive and does not provide registrant identity or contact history.
     def get_whois_history(params = {})
-      @client.request({"title":"WHOIS History","description":"Track WHOIS record changes over time. Shows registrar transfers, expiry extensions, nameserver changes, and privacy toggles. Data accumulates from API lookups.","method":"GET","path":"/v1/whois/history","pathParams":[],"queryParams":["domain","limit"],"hasBody":false}, params)
+      @client.request({"title":"WHOIS History","description":"Query the DomScan WHOIS observation log. A qualifying fresh, successful RDAP-backed GET /v1/whois or /v2/whois lookup can record at most one normalized snapshot per domain per UTC day. Cached responses, bulk lookups, history reads, and traditional WHOIS-only fallbacks do not add snapshots. This is not a global historical WHOIS archive and does not provide registrant identity or contact history.","method":"GET","path":"/v1/whois/history","pathParams":[],"queryParams":["domain","limit"],"hasBody":false}, params)
     end
   end
 
   class PricingService < Service
-    # Get pricing for multiple domains at once.
+    # Read daily standard-price rows for multiple TLDs. Each unique TLD and selected registrar pair costs one credit.
     def bulk_pricing(params = {})
-      @client.request({"title":"Bulk Pricing","description":"Get pricing for multiple domains at once.","method":"POST","path":"/v1/prices/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+      @client.request({"title":"Bulk Pricing","description":"Read daily standard-price rows for multiple TLDs. Each unique TLD and selected registrar pair costs one credit.","method":"POST","path":"/v1/prices/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
     end
 
-    # Compare domain prices across multiple registrars.
+    # Compare daily standard-TLD rows and separate credential-backed exact-domain quotes without inferring missing operation prices.
     def compare_prices(params = {})
-      @client.request({"title":"Compare Registrar Prices","description":"Compare domain prices across multiple registrars.","method":"GET","path":"/v1/prices/compare","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Compare Registrar Prices","description":"Compare daily standard-TLD rows and separate credential-backed exact-domain quotes without inferring missing operation prices.","method":"GET","path":"/v1/prices/compare","pathParams":[],"queryParams":["domain","registrars","skip_cache"],"hasBody":false}, params)
     end
 
-    # Get domain registration and renewal prices across registrars.
+    # Read daily standard-TLD price snapshots from verified official registrar sources. One credit is charged per unique TLD and selected registrar pair.
     def get_prices(params = {})
-      @client.request({"title":"Domain Pricing","description":"Get domain registration and renewal prices across registrars.","method":"GET","path":"/v1/prices","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Domain Pricing","description":"Read daily standard-TLD price snapshots from verified official registrar sources. One credit is charged per unique TLD and selected registrar pair.","method":"GET","path":"/v1/prices","pathParams":[],"queryParams":["tlds","registrars","skip_cache"],"hasBody":false}, params)
     end
 
-    # Get list of supported registrars with pricing data.
+    # List registrar metadata and identify which registrars currently have integrated DomScan pricing sources.
     def get_registrars(params = {})
-      @client.request({"title":"List Registrars","description":"Get list of supported registrars with pricing data.","method":"GET","path":"/v1/prices/registrars","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"List Registrars","description":"List registrar metadata and identify which registrars currently have integrated DomScan pricing sources.","method":"GET","path":"/v1/prices/registrars","pathParams":[],"queryParams":[],"hasBody":false}, params)
     end
 
-    # Get pricing for a specific TLD across registrars.
+    # Read daily standard-price rows for one TLD, with registrar filters, provenance, freshness, and pair-based billing.
     def get_tld_pricing(params = {})
-      @client.request({"title":"TLD Pricing","description":"Get pricing for a specific TLD across registrars.","method":"GET","path":"/v1/prices/tld/:tld","pathParams":["tld"],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"TLD Pricing","description":"Read daily standard-price rows for one TLD, with registrar filters, provenance, freshness, and pair-based billing.","method":"GET","path":"/v1/prices/tld/:tld","pathParams":["tld"],"queryParams":["registrars","skip_cache"],"hasBody":false}, params)
     end
   end
 
   class RecipesService < Service
-    # Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 6 credits.
+    # Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 4 credits.
     def recipe_brand_launch(params = {})
-      @client.request({"title":"Brand Launch Readiness","description":"Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 6 credits.","method":"GET","path":"/v1/recipes/brand-launch","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Brand Launch Readiness","description":"Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 4 credits.","method":"GET","path":"/v1/recipes/brand-launch","pathParams":[],"queryParams":["domain","brand_name","platforms"],"hasBody":false}, params)
     end
 
-    # Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 8 credits.
+    # Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 5 credits.
     def recipe_competitor_intel(params = {})
-      @client.request({"title":"Competitor Intelligence","description":"Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 8 credits.","method":"GET","path":"/v1/recipes/competitor-intel","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Competitor Intelligence","description":"Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 5 credits.","method":"GET","path":"/v1/recipes/competitor-intel","pathParams":[],"queryParams":["domain","discover_subdomains","analyze_email"],"hasBody":false}, params)
     end
 
-    # Brand protection through strategic domain acquisition recommendations. Saves 10 credits.
+    # Brand protection through strategic domain acquisition recommendations. Saves 8 credits.
     def recipe_defensive_registration(params = {})
-      @client.request({"title":"Defensive Registration","description":"Brand protection through strategic domain acquisition recommendations. Saves 10 credits.","method":"GET","path":"/v1/recipes/defensive-registration","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Defensive Registration","description":"Brand protection through strategic domain acquisition recommendations. Saves 8 credits.","method":"GET","path":"/v1/recipes/defensive-registration","pathParams":[],"queryParams":["brand","owned_domains","priority_tlds","include_typos","budget"],"hasBody":false}, params)
     end
 
-    # Pre-migration checklist and current DNS configuration snapshot. Saves 6 credits.
+    # Pre-migration checklist and current DNS configuration snapshot. Saves 5 credits.
     def recipe_dns_migration(params = {})
-      @client.request({"title":"DNS Migration Check","description":"Pre-migration checklist and current DNS configuration snapshot. Saves 6 credits.","method":"GET","path":"/v1/recipes/dns-migration","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"DNS Migration Check","description":"Pre-migration checklist and current DNS configuration snapshot. Saves 5 credits.","method":"GET","path":"/v1/recipes/dns-migration","pathParams":[],"queryParams":["domain","target_nameservers","critical_records"],"hasBody":false}, params)
     end
 
-    # AI-powered domain discovery with filtering and availability checking. Saves 15 credits.
+    # AI-powered domain discovery with filtering and availability checking. Saves 13 credits.
     def recipe_domain_finder(params = {})
-      @client.request({"title":"Domain Finder","description":"AI-powered domain discovery with filtering and availability checking. Saves 15 credits.","method":"GET","path":"/v1/recipes/domain-finder","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Domain Finder","description":"AI-powered domain discovery with filtering and availability checking. Saves 13 credits.","method":"GET","path":"/v1/recipes/domain-finder","pathParams":[],"queryParams":["keywords","tlds","style","max_length","language","limit"],"hasBody":false}, params)
     end
 
-    # Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 8 credits vs individual calls.
+    # Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 6 credits vs individual calls.
     def recipe_due_diligence(params = {})
-      @client.request({"title":"Domain Due Diligence","description":"Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 8 credits vs individual calls.","method":"GET","path":"/v1/recipes/due-diligence","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Domain Due Diligence","description":"Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 6 credits vs individual calls.","method":"GET","path":"/v1/recipes/due-diligence","pathParams":[],"queryParams":["domain","include_competitors"],"hasBody":false}, params)
     end
 
-    # Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 7 credits.
+    # Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 5 credits.
     def recipe_email_deliverability(params = {})
-      @client.request({"title":"Email Deliverability Audit","description":"Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 7 credits.","method":"GET","path":"/v1/recipes/email-deliverability","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Email Deliverability Audit","description":"Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 5 credits.","method":"GET","path":"/v1/recipes/email-deliverability","pathParams":[],"queryParams":["domain","dkim_selectors","check_blacklists"],"hasBody":false}, params)
     end
 
-    # Complete infrastructure mapping and attack surface analysis. Saves 13 credits.
+    # Complete infrastructure mapping and attack surface analysis. Saves 10 credits.
     def recipe_infrastructure_discovery(params = {})
-      @client.request({"title":"Infrastructure Discovery","description":"Complete infrastructure mapping and attack surface analysis. Saves 13 credits.","method":"GET","path":"/v1/recipes/infrastructure-discovery","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Infrastructure Discovery","description":"Complete infrastructure mapping and attack surface analysis. Saves 10 credits.","method":"GET","path":"/v1/recipes/infrastructure-discovery","pathParams":[],"queryParams":["domain","depth","include_historical"],"hasBody":false}, params)
     end
 
-    # Evidence collection and analysis for suspected phishing domains. Saves 12 credits.
+    # Evidence collection and analysis for suspected phishing domains. Saves 10 credits.
     def recipe_phishing_investigation(params = {})
-      @client.request({"title":"Phishing Investigation","description":"Evidence collection and analysis for suspected phishing domains. Saves 12 credits.","method":"GET","path":"/v1/recipes/phishing-investigation","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Phishing Investigation","description":"Evidence collection and analysis for suspected phishing domains. Saves 10 credits.","method":"GET","path":"/v1/recipes/phishing-investigation","pathParams":[],"queryParams":["suspicious_domain","legitimate_domain","collect_evidence"],"hasBody":false}, params)
     end
 
-    # Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 280 credits.
+    # Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 275 credits.
     def recipe_portfolio_audit(params = {})
-      @client.request({"title":"Portfolio Audit","description":"Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 280 credits.","method":"GET","path":"/v1/recipes/portfolio-audit","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Portfolio Audit","description":"Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 275 credits.","method":"GET","path":"/v1/recipes/portfolio-audit","pathParams":[],"queryParams":["domains","include_valuation","include_health","alert_expiring_days"],"hasBody":false}, params)
     end
 
     # Audit domain portfolio via POST for larger domain lists.
@@ -478,9 +603,9 @@ module DomScan
       @client.request({"title":"Portfolio Audit (POST)","description":"Audit domain portfolio via POST for larger domain lists.","method":"POST","path":"/v1/recipes/portfolio-audit","pathParams":[],"queryParams":[],"hasBody":true}, params)
     end
 
-    # Comprehensive typosquatting and brand threat analysis for security teams. Saves 25 credits.
+    # Comprehensive typosquatting and brand threat analysis for security teams. Saves 22 credits.
     def recipe_threat_assessment(params = {})
-      @client.request({"title":"Threat Assessment","description":"Comprehensive typosquatting and brand threat analysis for security teams. Saves 25 credits.","method":"GET","path":"/v1/recipes/threat-assessment","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Threat Assessment","description":"Comprehensive typosquatting and brand threat analysis for security teams. Saves 22 credits.","method":"GET","path":"/v1/recipes/threat-assessment","pathParams":[],"queryParams":["domain","max_threats","include_evidence"],"hasBody":false}, params)
     end
   end
 
@@ -490,64 +615,99 @@ module DomScan
       @client.request({"title":"Bulk Email Check","description":"Check multiple email domains against blacklists at once.","method":"POST","path":"/v1/email/check/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
     end
 
-    # Check if an email domain is on disposable/temporary email blacklists.
-    def check_email_blacklist(params = {})
-      @client.request({"title":"Email Blacklist Check","description":"Check if an email domain is on disposable/temporary email blacklists.","method":"GET","path":"/v1/email/check","pathParams":[],"queryParams":[],"hasBody":false}, params)
+    # Search Certificate Transparency data for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.
+    def bulk_get_certificates(params = {})
+      @client.request({"title":"Bulk SSL Certificate Search","description":"Search Certificate Transparency data for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.","method":"POST","path":"/v1/certificates/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
     end
 
-    # Download the full email blacklist database in various formats.
-    def download_email_blacklist(params = {})
-      @client.request({"title":"Download Email Blacklist","description":"Download the full email blacklist database in various formats.","method":"GET","path":"/v1/email/blacklist/download","pathParams":[],"queryParams":[],"hasBody":false}, params)
+    # Check SPF, DKIM, DMARC, MTA-STS, TLS-RPT, and recursive SPF behavior for up to 10 domains. Results preserve input order and include per-domain errors.
+    def bulk_get_email_auth(params = {})
+      @client.request({"title":"Bulk Email Authentication","description":"Check SPF, DKIM, DMARC, MTA-STS, TLS-RPT, and recursive SPF behavior for up to 10 domains. Results preserve input order and include per-domain errors.","method":"POST","path":"/v1/email-auth/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # Run the passive subdomain evidence pipeline for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.
+    def bulk_get_subdomains(params = {})
+      @client.request({"title":"Bulk Subdomain Discovery","description":"Run the passive subdomain evidence pipeline for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.","method":"POST","path":"/v1/subdomains/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # Check if an email domain is on disposable/temporary email blacklists.
+    def check_email_blacklist(params = {})
+      @client.request({"title":"Email Blacklist Check","description":"Check if an email domain is on disposable/temporary email blacklists.","method":"GET","path":"/v1/email/check","pathParams":[],"queryParams":["email","checks"],"hasBody":false}, params)
     end
 
     # Query Certificate Transparency logs. Find all SSL certificates issued for a domain.
     def get_certificates(params = {})
-      @client.request({"title":"SSL Certificates","description":"Query Certificate Transparency logs. Find all SSL certificates issued for a domain.","method":"GET","path":"/v1/certificates","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"SSL Certificates","description":"Query Certificate Transparency logs. Find all SSL certificates issued for a domain.","method":"GET","path":"/v1/certificates","pathParams":[],"queryParams":["domain","include_subdomains","include_expired","limit","cursor"],"hasBody":false}, params)
     end
 
-    # Check domain reputation across security feeds, blacklists, and threat intelligence.
+    # Check domain reputation across DNS, TLS, blacklist, parking, web presence, and email signals with score confidence metadata.
     def get_domain_reputation(params = {})
-      @client.request({"title":"Domain Reputation","description":"Check domain reputation across security feeds, blacklists, and threat intelligence.","method":"GET","path":"/v1/reputation","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Domain Reputation","description":"Check domain reputation across DNS, TLS, blacklist, parking, web presence, and email signals with score confidence metadata.","method":"GET","path":"/v1/reputation","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
     end
 
-    # Check DMARC, SPF, and DKIM configurations for email security auditing.
+    # Check DMARC, SPF, DKIM, MTA-STS, TLS-RPT, and recursive SPF behavior for email security auditing.
     def get_email_auth(params = {})
-      @client.request({"title":"Email Authentication","description":"Check DMARC, SPF, and DKIM configurations for email security auditing.","method":"GET","path":"/v1/email-auth","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Email Authentication","description":"Check DMARC, SPF, DKIM, MTA-STS, TLS-RPT, and recursive SPF behavior for email security auditing.","method":"GET","path":"/v1/email-auth","pathParams":[],"queryParams":["domain","selectors"],"hasBody":false}, params)
     end
 
-    # Get information about the email blacklist database.
-    def get_email_blacklist_info(params = {})
-      @client.request({"title":"Email Blacklist Info","description":"Get information about the email blacklist database.","method":"GET","path":"/v1/email/blacklist","pathParams":[],"queryParams":[],"hasBody":false}, params)
+    # Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and proxy-backed mail security checks.
+    def get_email_compliance(params = {})
+      @client.request({"title":"Email Compliance","description":"Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and proxy-backed mail security checks.","method":"GET","path":"/v1/email/compliance","pathParams":[],"queryParams":["domain","selectors","providers"],"hasBody":false}, params)
+    end
+
+    # Run a comprehensive live SSL/TLS audit for a domain, aggregating certificate, chain, revocation, HSTS, HTTP version, and TLS posture details.
+    def get_ssl_audit(params = {})
+      @client.request({"title":"SSL Audit","description":"Run a comprehensive live SSL/TLS audit for a domain, aggregating certificate, chain, revocation, HSTS, HTTP version, and TLS posture details.","method":"GET","path":"/v1/ssl/audit","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
     end
 
     # Analyze the certificate chain including issuer, validity, and trust chain verification.
     def get_ssl_chain(params = {})
-      @client.request({"title":"SSL Chain","description":"Analyze the certificate chain including issuer, validity, and trust chain verification.","method":"GET","path":"/v1/ssl/chain","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"SSL Chain","description":"Analyze the certificate chain including issuer, validity, and trust chain verification.","method":"GET","path":"/v1/ssl/chain","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
+    end
+
+    # Run a premium cached deep SSL/TLS scan for a domain. Returns a fresh cached result immediately when available, or starts a long-running scan and returns a signed polling token.
+    def get_ssl_deep_scan(params = {})
+      @client.request({"title":"SSL Deep Scan","description":"Run a premium cached deep SSL/TLS scan for a domain. Returns a fresh cached result immediately when available, or starts a long-running scan and returns a signed polling token.","method":"GET","path":"/v1/ssl/deep-scan","pathParams":[],"queryParams":["domain","refresh","profile"],"hasBody":false}, params)
     end
 
     # Check if an SSL certificate is expiring soon with configurable alert threshold.
     def get_ssl_expiring(params = {})
-      @client.request({"title":"SSL Expiry Check","description":"Check if an SSL certificate is expiring soon with configurable alert threshold.","method":"GET","path":"/v1/ssl/expiring","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"SSL Expiry Check","description":"Check if an SSL certificate is expiring soon with configurable alert threshold.","method":"GET","path":"/v1/ssl/expiring","pathParams":[],"queryParams":["domain","threshold_days"],"hasBody":false}, params)
     end
 
-    # Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring.
+    # Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring plus HSTS preload audit metadata.
     def get_ssl_grade(params = {})
-      @client.request({"title":"SSL Grade","description":"Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring.","method":"GET","path":"/v1/ssl/grade","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"SSL Grade","description":"Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring plus HSTS preload audit metadata.","method":"GET","path":"/v1/ssl/grade","pathParams":[],"queryParams":["domain"],"hasBody":false}, params)
     end
 
-    # Discover subdomains using Certificate Transparency and DNS enumeration.
+    # Return best-effort public hostname evidence from a sequential passive pipeline. Discovery tries crt.sh first, then can fall back to HackerTarget, ThreatMiner, the Wayback Machine, and CertSpotter. Results include their evidence source. DomScan does not brute-force names or crawl the target site, so coverage is incomplete.
     def get_subdomains(params = {})
-      @client.request({"title":"Subdomain Finder","description":"Discover subdomains using Certificate Transparency and DNS enumeration.","method":"GET","path":"/v1/subdomains","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Subdomain Finder","description":"Return best-effort public hostname evidence from a sequential passive pipeline. Discovery tries crt.sh first, then can fall back to HackerTarget, ThreatMiner, the Wayback Machine, and CertSpotter. Results include their evidence source. DomScan does not brute-force names or crawl the target site, so coverage is incomplete.","method":"GET","path":"/v1/subdomains","pathParams":[],"queryParams":["domain","sources","verify","include_wildcards","limit","prefer_cache"],"hasBody":false}, params)
     end
 
     # Detect typosquatting threats with analysis of common typos, homoglyphs, and brand impersonation risks.
     def get_typosquatting(params = {})
-      @client.request({"title":"Typosquatting Detection","description":"Detect typosquatting threats with analysis of common typos, homoglyphs, and brand impersonation risks.","method":"GET","path":"/v1/typos","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Typosquatting Detection","description":"Detect typosquatting threats with analysis of common typos, homoglyphs, and brand impersonation risks.","method":"GET","path":"/v1/typos","pathParams":[],"queryParams":["domain","check_registered","limit","include_tld_swap"],"hasBody":false}, params)
     end
 
-    # Verify email deliverability with syntax validation, MX lookup, disposable detection, and optional SMTP mailbox verification. Basic check costs 1 credit; full SMTP check costs 5 credits.
+    # Find exposed software versions and deterministic web security misconfigurations using verified technology evidence, exact OSV package matching, CISA Known Exploited Vulnerabilities, FIRST EPSS, and isolated Edge Relay rendering. Results separate affected versions from configuration findings and preserve unknown coverage.
+    def get_vulnerabilities(params = {})
+      @client.request({"title":"Vulnerability Intelligence","description":"Find exposed software versions and deterministic web security misconfigurations using verified technology evidence, exact OSV package matching, CISA Known Exploited Vulnerabilities, FIRST EPSS, and isolated Edge Relay rendering. Results separate affected versions from configuration findings and preserve unknown coverage.","method":"GET","path":"/v1/vulnerabilities","pathParams":[],"queryParams":["url","domain","mode"],"hasBody":false}, params)
+    end
+
+    # Validate, normalize, and enrich international phone numbers with country-specific coverage levels, offline numbering-plan, location, time-zone, original prefix-carrier, portability-support, dialing, short-number, service, and official allocation metadata. US NANPA and Canadian CNA/CNAC snapshots add NPA-NXX central office code status and original code-holder evidence. DomScan uses its own Edge Relay and free local datasets without paid or per-number third-party lookups. Results never claim current carrier, reachability, subscriber identity, or individual-number assignment.
+    def validate_phone_number(params = {})
+      @client.request({"title":"Phone Number Validation","description":"Validate, normalize, and enrich international phone numbers with country-specific coverage levels, offline numbering-plan, location, time-zone, original prefix-carrier, portability-support, dialing, short-number, service, and official allocation metadata. US NANPA and Canadian CNA/CNAC snapshots add NPA-NXX central office code status and original code-holder evidence. DomScan uses its own Edge Relay and free local datasets without paid or per-number third-party lookups. Results never claim current carrier, reachability, subscriber identity, or individual-number assignment.","method":"POST","path":"/v1/phone/validate","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and uses one DomScan Edge Relay batch with zero paid or per-number third-party lookups.
+    def validate_phone_numbers_bulk(params = {})
+      @client.request({"title":"Bulk Phone Number Validation","description":"Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and uses one DomScan Edge Relay batch with zero paid or per-number third-party lookups.","method":"POST","path":"/v1/phone/validate/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # Verify email deliverability with syntax validation, MX/null MX lookup, reserved/test-domain detection, provider typo suggestions, MX provider fingerprinting, SPF/DMARC/MTA-STS/TLS-RPT evidence, local-part/domain intelligence, toxic/do-not-mail signals, confidence scoring, and industry-style deliverability status. Mailbox-level SMTP probing is deprecated and is not charged or performed.
     def verify_email(params = {})
-      @client.request({"title":"Email Verification","description":"Verify email deliverability with syntax validation, MX lookup, disposable detection, and optional SMTP mailbox verification. Basic check costs 1 credit; full SMTP check costs 5 credits.","method":"GET","path":"/v1/email/verify","pathParams":[],"queryParams":["email","full"],"hasBody":false}, params)
+      @client.request({"title":"Email Verification","description":"Verify email deliverability with syntax validation, MX/null MX lookup, reserved/test-domain detection, provider typo suggestions, MX provider fingerprinting, SPF/DMARC/MTA-STS/TLS-RPT evidence, local-part/domain intelligence, toxic/do-not-mail signals, confidence scoring, and industry-style deliverability status. Mailbox-level SMTP probing is deprecated and is not charged or performed.","method":"GET","path":"/v1/email/verify","pathParams":[],"queryParams":["email","full"],"hasBody":false}, params)
     end
 
     # Verify multiple email addresses at once. Max 100 emails per request.
@@ -557,9 +717,19 @@ module DomScan
   end
 
   class SocialService < Service
-    # Check username availability across social platforms like GitHub, Reddit, and more.
+    # Check up to 10 social handles or resource identifiers in one request at the normal 2-credit rate per valid item, with no bulk discount. Invalid items return per-item errors and are not billed.
+    def bulk_check_social_handles(params = {})
+      @client.request({"title":"Bulk Social Handle Check","description":"Check up to 10 social handles or resource identifiers in one request at the normal 2-credit rate per valid item, with no bulk discount. Invalid items return per-item errors and are not billed.","method":"POST","path":"/v1/social/bulk","pathParams":[],"queryParams":[],"hasBody":true}, params)
+    end
+
+    # Check username availability across social, developer, creator, and community platforms. Optionally resolve repositories, subreddits, Discord invites, Substack profiles, and federated accounts.
     def check_social_handles(params = {})
-      @client.request({"title":"Social Handle Checker","description":"Check username availability across social platforms like GitHub, Reddit, and more.","method":"GET","path":"/v1/social","pathParams":[],"queryParams":[],"hasBody":false}, params)
+      @client.request({"title":"Social Handle Checker","description":"Check username availability across social, developer, creator, and community platforms. Optionally resolve repositories, subreddits, Discord invites, Substack profiles, and federated accounts.","method":"GET","path":"/v1/social","pathParams":[],"queryParams":["handle","platforms","resources"],"hasBody":false}, params)
+    end
+
+    # Returns supported username platforms, resource types, parameters, and examples for the social intelligence endpoint.
+    def get_social_info(params = {})
+      @client.request({"title":"Social Handle Reference","description":"Returns supported username platforms, resource types, parameters, and examples for the social intelligence endpoint.","method":"GET","path":"/v1/social/info","pathParams":[],"queryParams":[],"hasBody":false}, params)
     end
   end
 end

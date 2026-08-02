@@ -4,6 +4,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>DomScan.Sdk</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
+    <Description>Official C# SDK for the DomScan API</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://domscan.net/docs</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/estevecastells/domscan-sdk</RepositoryUrl>
   </PropertyGroup>
 </Project>

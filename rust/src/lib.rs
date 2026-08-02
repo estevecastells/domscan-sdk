@@ -1,4 +1,4 @@
-use reqwest::header::{HeaderMap, ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
+use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
 use serde_json::{Map, Value};
 use std::env;
 use std::sync::Arc;
@@ -37,7 +37,6 @@ struct InnerClient {
     api_key: Option<String>,
     base_url: String,
     user_agent: String,
-    default_headers: HeaderMap,
     http_client: reqwest::Client,
 }
 
@@ -56,8 +55,7 @@ impl DomScanClient {
         let inner = InnerClient {
             api_key: resolved_api_key,
             base_url: "https://domscan.net".to_string(),
-            user_agent: "domscan-rust/0.1.0".to_string(),
-            default_headers: HeaderMap::new(),
+            user_agent: "domscan-rust/0.2.0".to_string(),
             http_client,
         };
         Self { inner: Arc::new(inner) }
@@ -238,13 +236,13 @@ impl AvailabilityService {
         }, params).await
     }
 
-    /// Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results.
+    /// Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results. Primary format: name + tlds. Single-domain shortcut: domain=example.com.
     pub async fn check_domain_availability(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/status".to_string(),
             path_params: vec![],
-            query_params: vec!["name".to_string(), "tlds".to_string(), "prefer_cache".to_string()],
+            query_params: vec!["name".to_string(), "tlds".to_string(), "domain".to_string(), "prefer_cache".to_string()],
             has_body: false,
         }, params).await
     }
@@ -289,13 +287,24 @@ impl DnsService {
         }, params).await
     }
 
+    /// Compare answers from the configured public recursive DNS resolvers for up to 10 domains. Results preserve input order and report per-domain errors.
+    pub async fn bulk_dns_propagation(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/dns/propagation/bulk".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
     /// Check a specific DKIM selector for a domain and validate the public key.
     pub async fn check_dkim(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/tools/dkim/check".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "selector".to_string()],
             has_body: false,
         }, params).await
     }
@@ -306,7 +315,7 @@ impl DnsService {
             method: "GET".to_string(),
             path: "/v1/tools/dkim/discover".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string()],
             has_body: false,
         }, params).await
     }
@@ -322,73 +331,62 @@ impl DnsService {
         }, params).await
     }
 
-    /// Get all DNS record types for a domain in a single call.
+    /// Get all major DNS record types for a domain in a single call with IPv6 parity, TXT classification, wildcard probe, and warning signals.
     pub async fn get_all_dns_records(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/dns/all".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "wildcard_probe".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Compare DNS records between two dates to see what changed.
-    pub async fn get_dns_diff(&self, params: Params) -> Result<Value, DomScanError> {
-        self.client.request(EndpointDefinition {
-            method: "GET".to_string(),
-            path: "/v1/dns/diff".to_string(),
-            path_params: vec![],
-            query_params: vec![],
-            has_body: false,
-        }, params).await
-    }
-
-    /// Track DNS record changes over time. Data accumulates from API lookups.
+    /// Review day-level DNS record values observed by successful DomScan DNS lookups. This lookup-driven observation log can miss changes between lookups and does not include external passive DNS sources.
     pub async fn get_dns_history(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/dns/history".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "type".to_string(), "from".to_string(), "to".to_string(), "limit".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Check DNS propagation across multiple global DNS servers.
+    /// Compare DNS answers from DomScan's configured Cloudflare and Google public recursive DoH providers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
     pub async fn get_dns_propagation(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/dns/propagation".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "type".to_string(), "expected".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically.
+    /// Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically with TXT classification and additive warning signals.
     pub async fn get_dns_records(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/dns".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "type".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, and CAA records.
+    /// Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, CAA, MTA-STS, TLS-RPT, resolver latency, and AXFR exposure.
     pub async fn get_dns_security(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/dns/security".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Get list of global DNS servers used for propagation checks.
+    /// List the public recursive DoH providers used for resolver comparison. These are global anycast services, not geographic probes.
     pub async fn get_dns_servers(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
@@ -439,35 +437,79 @@ impl DomainService {
         }, params).await
     }
 
+    /// Get normalized RDAP registration data: registrar, dates, nameservers, DNSSEC status.
+    pub async fn bulk_get_domain_profile(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/profile/bulk".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// Compare up to 50 candidate brand names and return ranked scores.
+    pub async fn compare_brand_names(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/score/compare".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
     /// Compare two domains side-by-side across multiple metrics and attributes.
     pub async fn compare_domains(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/compare".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domains".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Comprehensive health checks: DNS, SSL, email deliverability, security headers, and more.
+    /// Comprehensive health checks with DNS, SSL, email, proxy-enriched TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
     pub async fn get_domain_health(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/health".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "details".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Comprehensive domain intelligence in one call: DNS, WHOIS, health, and reputation data aggregated into a single response.
+    /// Aggregate DNS, RDAP registration, health, reputation, and popularity observations in one response, with null unknowns and per-component freshness.
     pub async fn get_domain_overview(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/overview".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Get the current research-grade Tranco rank and bucket for a domain, with explicit ranked, unranked, and unknown states, source date, cache state, and optional lookup-driven history.
+    pub async fn get_domain_popularity(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/popularity".to_string(),
+            path_params: vec![],
+            query_params: vec!["domain".to_string(), "include_history".to_string(), "history_limit".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Read prior Tranco observations recorded by DomScan lookups. This is a lookup-driven history, not a complete daily rank series.
+    pub async fn get_domain_popularity_history(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/popularity/history".to_string(),
+            path_params: vec![],
+            query_params: vec!["domain".to_string(), "limit".to_string()],
             has_body: false,
         }, params).await
     }
@@ -478,7 +520,7 @@ impl DomainService {
             method: "GET".to_string(),
             path: "/v1/profile".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string()],
             has_body: false,
         }, params).await
     }
@@ -489,7 +531,7 @@ impl DomainService {
             method: "GET".to_string(),
             path: "/v1/score".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["name".to_string(), "domain".to_string()],
             has_body: false,
         }, params).await
     }
@@ -500,7 +542,7 @@ impl DomainService {
             method: "GET".to_string(),
             path: "/v1/value".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string()],
             has_body: false,
         }, params).await
     }
@@ -510,6 +552,17 @@ impl DomainService {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/health/quick".to_string(),
+            path_params: vec![],
+            query_params: vec!["domain".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Returns scoring dimensions, grade scale, and related scoring endpoints.
+    pub async fn get_score_info(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/score/info".to_string(),
             path_params: vec![],
             query_params: vec![],
             has_body: false,
@@ -533,7 +586,7 @@ impl DomainService {
             method: "GET".to_string(),
             path: "/v1/tlds".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["type".to_string()],
             has_body: false,
         }, params).await
     }
@@ -544,7 +597,7 @@ impl DomainService {
             method: "GET".to_string(),
             path: "/v1/suggest".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["keywords".to_string(), "tlds".to_string(), "style".to_string(), "industry".to_string(), "language".to_string(), "limit".to_string(), "check".to_string()],
             has_body: false,
         }, params).await
     }
@@ -556,13 +609,68 @@ pub struct IntelligenceService {
 }
 
 impl IntelligenceService {
-    /// Classify websites into 350+ IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.
+    /// Detect hosting, CDN, WAF, DNS, and email infrastructure for up to 10 domains. Results preserve input order and include per-domain errors.
+    pub async fn bulk_get_hosting(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/hosting/bulk".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// Extract normalized URL intelligence for up to 10 public URLs. Results preserve input order and include per-item errors.
+    pub async fn bulk_get_url_intelligence(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/url-intelligence/bulk".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// Extract website identity assets for up to 10 domains. Results preserve input order and include per-item errors.
+    pub async fn bulk_get_website_identity_assets(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/identity-assets/bulk".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// Resolve public identities for up to 10 company domains. Results preserve input order and include per-item errors.
+    pub async fn bulk_resolve_internet_identity(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/identity-resolution/bulk".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// Cancel unstarted technology scan work and settle item-level refunds. An already running browser scan may finish, but its result is discarded.
+    pub async fn cancel_tech_scan_job(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "DELETE".to_string(),
+            path: "/v1/tech/jobs/:job_id".to_string(),
+            path_params: vec!["job_id".to_string()],
+            query_params: vec![],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Classify websites into DomScan IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.
     pub async fn categorize_website(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/categorize".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["url".to_string(), "domain".to_string(), "skip_cache".to_string(), "min_confidence".to_string()],
             has_body: false,
         }, params).await
     }
@@ -578,13 +686,35 @@ impl IntelligenceService {
         }, params).await
     }
 
+    /// Create a durable asynchronous technology scan job for up to 100 public targets. Supports fast, JavaScript-rendered, and bounded same-origin deep modes with item-level billing and refunds.
+    pub async fn create_tech_scan_job(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/tech/jobs".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// List the DomScan IAB-inspired category IDs, response category names, taxonomy names, and subcategories returned by the Website Categorization API.
+    pub async fn get_categorization_taxonomy(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/categorize/taxonomy".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: false,
+        }, params).await
+    }
+
     /// Extract company information from a domain. Get name, industry, and contact details.
     pub async fn get_company(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/company".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string()],
             has_body: false,
         }, params).await
     }
@@ -595,7 +725,7 @@ impl IntelligenceService {
             method: "GET".to_string(),
             path: "/v1/similarity".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain1".to_string(), "domain2".to_string()],
             has_body: false,
         }, params).await
     }
@@ -606,7 +736,7 @@ impl IntelligenceService {
             method: "GET".to_string(),
             path: "/v1/hosting".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string()],
             has_body: false,
         }, params).await
     }
@@ -628,18 +758,95 @@ impl IntelligenceService {
             method: "GET".to_string(),
             path: "/v1/redirects".to_string(),
             path_params: vec![],
+            query_params: vec!["url".to_string(), "domain".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Get owner-scoped progress, item counts, billing settlement, and expiration details for a technology scan job.
+    pub async fn get_tech_scan_job(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/tech/jobs/:job_id".to_string(),
+            path_params: vec!["job_id".to_string()],
             query_params: vec![],
             has_body: false,
         }, params).await
     }
 
-    /// Detect website technologies: CDN, CMS, frameworks, analytics, and more.
+    /// Get ordered, signed-cursor-paginated results for a technology scan job. Full results expire after 48 hours and operational job records expire after seven days.
+    pub async fn get_tech_scan_job_results(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/tech/jobs/:job_id/results".to_string(),
+            path_params: vec!["job_id".to_string()],
+            query_params: vec!["cursor".to_string(), "limit".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Detect 500+ verified website technologies across 80+ categories using bounded HTTP signals, rendered JavaScript globals, observed network URLs, and same-origin multi-page analysis. Returns confidence, sanitized evidence scoped to each page, caveats, provenance, explicit limits, and complete or partial coverage.
     pub async fn get_tech_stack(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/tech".to_string(),
             path_params: vec![],
+            query_params: vec!["url".to_string(), "domain".to_string(), "mode".to_string(), "max_pages".to_string(), "skip_cache".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Extract normalized metadata, link-preview assets, Open Graph and Twitter Card fields, canonical URL, robots directives, structured-data types, security headers, links, contacts, and declared profiles from a public URL.
+    pub async fn get_url_intelligence(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/url-intelligence".to_string(),
+            path_params: vec![],
+            query_params: vec!["url".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Discover a website organization name, logo candidates, favicons, touch icons, preview image, theme color, manifest, and declared social profiles from public website metadata.
+    pub async fn get_website_identity_assets(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/identity-assets".to_string(),
+            path_params: vec![],
+            query_params: vec!["domain".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// List recent short-lived technology scan jobs for the authenticated account.
+    pub async fn list_tech_scan_jobs(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/tech/jobs".to_string(),
+            path_params: vec![],
+            query_params: vec!["limit".to_string(), "cursor".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Run up to 10 ordered fast technology scans in one request. Each valid target is billed independently, and failed upstream scans are refunded independently.
+    pub async fn post_tech_stack_bulk(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/tech/bulk".to_string(),
+            path_params: vec![],
             query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// Resolve a company domain into public social, developer, creator, federated, and app-store identities explicitly declared by its website.
+    pub async fn resolve_internet_identity(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/identity-resolution".to_string(),
+            path_params: vec![],
+            query_params: vec!["domain".to_string()],
             has_body: false,
         }, params).await
     }
@@ -651,6 +858,72 @@ pub struct MetaService {
 }
 
 impl MetaService {
+    /// Cancel unstarted batch items and refund their item charges. An item already being processed may finish.
+    pub async fn cancel_api_batch(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "DELETE".to_string(),
+            path: "/v1/batches/:job_id".to_string(),
+            path_params: vec!["job_id".to_string()],
+            query_params: vec![],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and failed items are refunded independently.
+    pub async fn create_api_batch(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/batches".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// Download the full disposable email domain dataset in various formats.
+    pub async fn download_email_blacklist(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/email/blacklist/download".to_string(),
+            path_params: vec![],
+            query_params: vec!["format".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Get progress, item counts, billing settlement, webhook delivery state, and expiration for an account API batch.
+    pub async fn get_api_batch(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/batches/:job_id".to_string(),
+            path_params: vec!["job_id".to_string()],
+            query_params: vec![],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Get ordered JSON results or download all items as RFC 4180 CSV for an account API batch. Results and job metadata expire 24 hours after creation.
+    pub async fn get_api_batch_results(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/batches/:job_id/results".to_string(),
+            path_params: vec!["job_id".to_string()],
+            query_params: vec!["after".to_string(), "limit".to_string(), "format".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Browse the disposable email domain dataset as a paginated data feed.
+    pub async fn get_email_blacklist_info(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/email/blacklist".to_string(),
+            path_params: vec![],
+            query_params: vec!["limit".to_string(), "offset".to_string(), "format".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
     /// Get credit costs per endpoint and API pricing information.
     pub async fn get_pricing_info(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
@@ -658,6 +931,17 @@ impl MetaService {
             path: "/v1/pricing".to_string(),
             path_params: vec![],
             query_params: vec![],
+            has_body: false,
+        }, params).await
+    }
+
+    /// List unexpired asynchronous API batches for the active customer account.
+    pub async fn list_api_batches(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/batches".to_string(),
+            path_params: vec![],
+            query_params: vec!["limit".to_string()],
             has_body: false,
         }, params).await
     }
@@ -669,6 +953,17 @@ pub struct OsintService {
 }
 
 impl OsintService {
+    /// Query raw RDAP data for up to 10 domains, IP addresses, CIDR ranges, or autonomous system numbers. One query type applies to the whole batch.
+    pub async fn bulk_get_rdap(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/rdap/bulk".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
     /// Get WHOIS data for multiple domains at once.
     pub async fn bulk_whois(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
@@ -677,28 +972,6 @@ impl OsintService {
             path_params: vec![],
             query_params: vec![],
             has_body: true,
-        }, params).await
-    }
-
-    /// Find domains that use a specific nameserver.
-    pub async fn get_dns_reverse_ns(&self, params: Params) -> Result<Value, DomScanError> {
-        self.client.request(EndpointDefinition {
-            method: "GET".to_string(),
-            path: "/v1/dns/reverse/ns".to_string(),
-            path_params: vec![],
-            query_params: vec![],
-            has_body: false,
-        }, params).await
-    }
-
-    /// Map domain relationships through shared infrastructure and registrant data.
-    pub async fn get_domain_graph(&self, params: Params) -> Result<Value, DomScanError> {
-        self.client.request(EndpointDefinition {
-            method: "GET".to_string(),
-            path: "/v1/graph".to_string(),
-            path_params: vec![],
-            query_params: vec![],
-            has_body: false,
         }, params).await
     }
 
@@ -713,13 +986,13 @@ impl OsintService {
         }, params).await
     }
 
-    /// Get IP addresses with geolocation, ASN, and hosting provider information.
+    /// Get IP or resolved-domain geolocation and ASN data, provider security flags, coarse hosting classification, and FCrDNS. PTR-based signals are derived from the IP, never the caller hostname.
     pub async fn get_ip_info(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/ip".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["ip".to_string(), "domain".to_string()],
             has_body: false,
         }, params).await
     }
@@ -730,29 +1003,29 @@ impl OsintService {
             method: "GET".to_string(),
             path: "/v1/mac".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["mac".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Find all domains hosted on a specific IP address.
-    pub async fn get_reverse_ip(&self, params: Params) -> Result<Value, DomScanError> {
+    /// Returns parameter help and an example response for the MAC address lookup endpoint.
+    pub async fn get_mac_lookup_info(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
-            path: "/v1/reverse/ip".to_string(),
+            path: "/v1/mac/info".to_string(),
             path_params: vec![],
             query_params: vec![],
             has_body: false,
         }, params).await
     }
 
-    /// Find all domains using a specific mail server for email infrastructure mapping.
-    pub async fn get_reverse_mx(&self, params: Params) -> Result<Value, DomScanError> {
+    /// Get raw RDAP response for a domain, IP address, or autonomous system number.
+    pub async fn get_rdap(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
-            path: "/v1/reverse/mx".to_string(),
+            path: "/v1/rdap".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["query".to_string(), "type".to_string(), "domain".to_string()],
             has_body: false,
         }, params).await
     }
@@ -763,12 +1036,12 @@ impl OsintService {
             method: "GET".to_string(),
             path: "/v1/whois".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Track WHOIS record changes over time. Shows registrar transfers, expiry extensions, nameserver changes, and privacy toggles. Data accumulates from API lookups.
+    /// Query the DomScan WHOIS observation log. A qualifying fresh, successful RDAP-backed GET /v1/whois or /v2/whois lookup can record at most one normalized snapshot per domain per UTC day. Cached responses, bulk lookups, history reads, and traditional WHOIS-only fallbacks do not add snapshots. This is not a global historical WHOIS archive and does not provide registrant identity or contact history.
     pub async fn get_whois_history(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
@@ -786,7 +1059,7 @@ pub struct PricingService {
 }
 
 impl PricingService {
-    /// Get pricing for multiple domains at once.
+    /// Read daily standard-price rows for multiple TLDs. Each unique TLD and selected registrar pair costs one credit.
     pub async fn bulk_pricing(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "POST".to_string(),
@@ -797,29 +1070,29 @@ impl PricingService {
         }, params).await
     }
 
-    /// Compare domain prices across multiple registrars.
+    /// Compare daily standard-TLD rows and separate credential-backed exact-domain quotes without inferring missing operation prices.
     pub async fn compare_prices(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/prices/compare".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "registrars".to_string(), "skip_cache".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Get domain registration and renewal prices across registrars.
+    /// Read daily standard-TLD price snapshots from verified official registrar sources. One credit is charged per unique TLD and selected registrar pair.
     pub async fn get_prices(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/prices".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["tlds".to_string(), "registrars".to_string(), "skip_cache".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Get list of supported registrars with pricing data.
+    /// List registrar metadata and identify which registrars currently have integrated DomScan pricing sources.
     pub async fn get_registrars(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
@@ -830,13 +1103,13 @@ impl PricingService {
         }, params).await
     }
 
-    /// Get pricing for a specific TLD across registrars.
+    /// Read daily standard-price rows for one TLD, with registrar filters, provenance, freshness, and pair-based billing.
     pub async fn get_tld_pricing(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/prices/tld/:tld".to_string(),
             path_params: vec!["tld".to_string()],
-            query_params: vec![],
+            query_params: vec!["registrars".to_string(), "skip_cache".to_string()],
             has_body: false,
         }, params).await
     }
@@ -848,112 +1121,112 @@ pub struct RecipesService {
 }
 
 impl RecipesService {
-    /// Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 6 credits.
+    /// Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 4 credits.
     pub async fn recipe_brand_launch(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/recipes/brand-launch".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "brand_name".to_string(), "platforms".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 8 credits.
+    /// Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 5 credits.
     pub async fn recipe_competitor_intel(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/recipes/competitor-intel".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "discover_subdomains".to_string(), "analyze_email".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Brand protection through strategic domain acquisition recommendations. Saves 10 credits.
+    /// Brand protection through strategic domain acquisition recommendations. Saves 8 credits.
     pub async fn recipe_defensive_registration(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/recipes/defensive-registration".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["brand".to_string(), "owned_domains".to_string(), "priority_tlds".to_string(), "include_typos".to_string(), "budget".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Pre-migration checklist and current DNS configuration snapshot. Saves 6 credits.
+    /// Pre-migration checklist and current DNS configuration snapshot. Saves 5 credits.
     pub async fn recipe_dns_migration(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/recipes/dns-migration".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "target_nameservers".to_string(), "critical_records".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// AI-powered domain discovery with filtering and availability checking. Saves 15 credits.
+    /// AI-powered domain discovery with filtering and availability checking. Saves 13 credits.
     pub async fn recipe_domain_finder(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/recipes/domain-finder".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["keywords".to_string(), "tlds".to_string(), "style".to_string(), "max_length".to_string(), "language".to_string(), "limit".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 8 credits vs individual calls.
+    /// Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 6 credits vs individual calls.
     pub async fn recipe_due_diligence(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/recipes/due-diligence".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "include_competitors".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 7 credits.
+    /// Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 5 credits.
     pub async fn recipe_email_deliverability(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/recipes/email-deliverability".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "dkim_selectors".to_string(), "check_blacklists".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Complete infrastructure mapping and attack surface analysis. Saves 13 credits.
+    /// Complete infrastructure mapping and attack surface analysis. Saves 10 credits.
     pub async fn recipe_infrastructure_discovery(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/recipes/infrastructure-discovery".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "depth".to_string(), "include_historical".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Evidence collection and analysis for suspected phishing domains. Saves 12 credits.
+    /// Evidence collection and analysis for suspected phishing domains. Saves 10 credits.
     pub async fn recipe_phishing_investigation(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/recipes/phishing-investigation".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["suspicious_domain".to_string(), "legitimate_domain".to_string(), "collect_evidence".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 280 credits.
+    /// Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 275 credits.
     pub async fn recipe_portfolio_audit(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/recipes/portfolio-audit".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domains".to_string(), "include_valuation".to_string(), "include_health".to_string(), "alert_expiring_days".to_string()],
             has_body: false,
         }, params).await
     }
@@ -969,13 +1242,13 @@ impl RecipesService {
         }, params).await
     }
 
-    /// Comprehensive typosquatting and brand threat analysis for security teams. Saves 25 credits.
+    /// Comprehensive typosquatting and brand threat analysis for security teams. Saves 22 credits.
     pub async fn recipe_threat_assessment(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/recipes/threat-assessment".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "max_threats".to_string(), "include_evidence".to_string()],
             has_body: false,
         }, params).await
     }
@@ -998,24 +1271,46 @@ impl SecurityService {
         }, params).await
     }
 
+    /// Search Certificate Transparency data for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.
+    pub async fn bulk_get_certificates(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/certificates/bulk".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// Check SPF, DKIM, DMARC, MTA-STS, TLS-RPT, and recursive SPF behavior for up to 10 domains. Results preserve input order and include per-domain errors.
+    pub async fn bulk_get_email_auth(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/email-auth/bulk".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// Run the passive subdomain evidence pipeline for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.
+    pub async fn bulk_get_subdomains(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/subdomains/bulk".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
     /// Check if an email domain is on disposable/temporary email blacklists.
     pub async fn check_email_blacklist(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/email/check".to_string(),
             path_params: vec![],
-            query_params: vec![],
-            has_body: false,
-        }, params).await
-    }
-
-    /// Download the full email blacklist database in various formats.
-    pub async fn download_email_blacklist(&self, params: Params) -> Result<Value, DomScanError> {
-        self.client.request(EndpointDefinition {
-            method: "GET".to_string(),
-            path: "/v1/email/blacklist/download".to_string(),
-            path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["email".to_string(), "checks".to_string()],
             has_body: false,
         }, params).await
     }
@@ -1026,40 +1321,51 @@ impl SecurityService {
             method: "GET".to_string(),
             path: "/v1/certificates".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "include_subdomains".to_string(), "include_expired".to_string(), "limit".to_string(), "cursor".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Check domain reputation across security feeds, blacklists, and threat intelligence.
+    /// Check domain reputation across DNS, TLS, blacklist, parking, web presence, and email signals with score confidence metadata.
     pub async fn get_domain_reputation(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/reputation".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Check DMARC, SPF, and DKIM configurations for email security auditing.
+    /// Check DMARC, SPF, DKIM, MTA-STS, TLS-RPT, and recursive SPF behavior for email security auditing.
     pub async fn get_email_auth(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/email-auth".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "selectors".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Get information about the email blacklist database.
-    pub async fn get_email_blacklist_info(&self, params: Params) -> Result<Value, DomScanError> {
+    /// Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and proxy-backed mail security checks.
+    pub async fn get_email_compliance(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
-            path: "/v1/email/blacklist".to_string(),
+            path: "/v1/email/compliance".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "selectors".to_string(), "providers".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Run a comprehensive live SSL/TLS audit for a domain, aggregating certificate, chain, revocation, HSTS, HTTP version, and TLS posture details.
+    pub async fn get_ssl_audit(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/ssl/audit".to_string(),
+            path_params: vec![],
+            query_params: vec!["domain".to_string()],
             has_body: false,
         }, params).await
     }
@@ -1070,7 +1376,18 @@ impl SecurityService {
             method: "GET".to_string(),
             path: "/v1/ssl/chain".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Run a premium cached deep SSL/TLS scan for a domain. Returns a fresh cached result immediately when available, or starts a long-running scan and returns a signed polling token.
+    pub async fn get_ssl_deep_scan(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/ssl/deep-scan".to_string(),
+            path_params: vec![],
+            query_params: vec!["domain".to_string(), "refresh".to_string(), "profile".to_string()],
             has_body: false,
         }, params).await
     }
@@ -1081,29 +1398,29 @@ impl SecurityService {
             method: "GET".to_string(),
             path: "/v1/ssl/expiring".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "threshold_days".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring.
+    /// Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring plus HSTS preload audit metadata.
     pub async fn get_ssl_grade(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/ssl/grade".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Discover subdomains using Certificate Transparency and DNS enumeration.
+    /// Return best-effort public hostname evidence from a sequential passive pipeline. Discovery tries crt.sh first, then can fall back to HackerTarget, ThreatMiner, the Wayback Machine, and CertSpotter. Results include their evidence source. DomScan does not brute-force names or crawl the target site, so coverage is incomplete.
     pub async fn get_subdomains(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/subdomains".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "sources".to_string(), "verify".to_string(), "include_wildcards".to_string(), "limit".to_string(), "prefer_cache".to_string()],
             has_body: false,
         }, params).await
     }
@@ -1114,12 +1431,45 @@ impl SecurityService {
             method: "GET".to_string(),
             path: "/v1/typos".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["domain".to_string(), "check_registered".to_string(), "limit".to_string(), "include_tld_swap".to_string()],
             has_body: false,
         }, params).await
     }
 
-    /// Verify email deliverability with syntax validation, MX lookup, disposable detection, and optional SMTP mailbox verification. Basic check costs 1 credit; full SMTP check costs 5 credits.
+    /// Find exposed software versions and deterministic web security misconfigurations using verified technology evidence, exact OSV package matching, CISA Known Exploited Vulnerabilities, FIRST EPSS, and isolated Edge Relay rendering. Results separate affected versions from configuration findings and preserve unknown coverage.
+    pub async fn get_vulnerabilities(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/vulnerabilities".to_string(),
+            path_params: vec![],
+            query_params: vec!["url".to_string(), "domain".to_string(), "mode".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Validate, normalize, and enrich international phone numbers with country-specific coverage levels, offline numbering-plan, location, time-zone, original prefix-carrier, portability-support, dialing, short-number, service, and official allocation metadata. US NANPA and Canadian CNA/CNAC snapshots add NPA-NXX central office code status and original code-holder evidence. DomScan uses its own Edge Relay and free local datasets without paid or per-number third-party lookups. Results never claim current carrier, reachability, subscriber identity, or individual-number assignment.
+    pub async fn validate_phone_number(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/phone/validate".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and uses one DomScan Edge Relay batch with zero paid or per-number third-party lookups.
+    pub async fn validate_phone_numbers_bulk(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/phone/validate/bulk".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// Verify email deliverability with syntax validation, MX/null MX lookup, reserved/test-domain detection, provider typo suggestions, MX provider fingerprinting, SPF/DMARC/MTA-STS/TLS-RPT evidence, local-part/domain intelligence, toxic/do-not-mail signals, confidence scoring, and industry-style deliverability status. Mailbox-level SMTP probing is deprecated and is not charged or performed.
     pub async fn verify_email(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
@@ -1148,11 +1498,33 @@ pub struct SocialService {
 }
 
 impl SocialService {
-    /// Check username availability across social platforms like GitHub, Reddit, and more.
+    /// Check up to 10 social handles or resource identifiers in one request at the normal 2-credit rate per valid item, with no bulk discount. Invalid items return per-item errors and are not billed.
+    pub async fn bulk_check_social_handles(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/social/bulk".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
+    /// Check username availability across social, developer, creator, and community platforms. Optionally resolve repositories, subreddits, Discord invites, Substack profiles, and federated accounts.
     pub async fn check_social_handles(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/social".to_string(),
+            path_params: vec![],
+            query_params: vec!["handle".to_string(), "platforms".to_string(), "resources".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Returns supported username platforms, resource types, parameters, and examples for the social intelligence endpoint.
+    pub async fn get_social_info(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/social/info".to_string(),
             path_params: vec![],
             query_params: vec![],
             has_body: false,

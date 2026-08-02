@@ -4,29 +4,20 @@ Public home for the official DomScan API client libraries.
 
 ## Official SDKs
 
-- [Node.js / TypeScript SDK](./node)
-- [Python SDK](./python)
-- [Go SDK](./go)
-- [Ruby SDK](./ruby)
-- [PHP SDK](./php)
-- [Java SDK](./java)
-- [C# SDK](./csharp)
-- [Kotlin SDK](./kotlin)
-- [Swift SDK](./swift)
-- [Rust SDK](./rust)
+| Language | Package | GitHub distribution |
+| --- | --- | --- |
+| [Node.js / TypeScript](./node) | `@domscan/sdk` | Release tarball |
+| [Python](./python) | `domscan-sdk` | Release source archive and wheel |
+| [Go](./go) | `github.com/estevecastells/domscan-sdk/go` | Tagged Go module |
+| [Ruby](./ruby) | `domscan-sdk` | Release gem |
+| [PHP](./php) | `estevecastells/domscan-sdk` | Composer artifact archive |
+| [Java](./java) | `net.domscan:domscan-sdk-java` | Release JAR |
+| [C#](./csharp) | `DomScan.Sdk` | Release NuGet package |
+| [Kotlin](./kotlin) | `net.domscan:domscan-sdk-kotlin` | Release JAR |
+| [Swift](./swift) | `DomScan` | Tagged Swift package |
+| [Rust](./rust) | `domscan-sdk` | Tagged Git dependency and crate archive |
 
-## Package Names
-
-- Node.js / TypeScript: `@domscan/sdk`
-- Python: `domscan-sdk`
-- Go module: `github.com/estevecastells/domscan-sdk/go`
-- Ruby gem: `domscan-sdk`
-- PHP package: `estevecastells/domscan-sdk`
-- Java artifact: `net.domscan:domscan-sdk-java`
-- C# package: `DomScan.Sdk`
-- Kotlin artifact: `net.domscan:domscan-sdk-kotlin`
-- Swift package: `DomScan`
-- Rust crate: `domscan-sdk`
+Package registry publication varies by language. Each language README documents a working GitHub installation path for this release.
 
 ## Included Resources
 
@@ -39,5 +30,6 @@ Public home for the official DomScan API client libraries.
 ## Notes
 
 - These SDKs are generated from DomScan's internal API registry and synced into this public repository.
-- The public packages currently cover 79 public non-session endpoints across availability, DNS, WHOIS, security, pricing, recipes, and intelligence workflows.
+- The public packages currently cover 113 public non-session endpoints across availability, DNS, WHOIS, security, pricing, recipes, and intelligence workflows.
 - The committed `manifest/endpoints.json` file is the public endpoint source used to render the generated SDK packages in this repository.
+- Run `node scripts/generate-sdks.mjs` after updating the manifest. Continuous integration verifies that generated clients stay current.

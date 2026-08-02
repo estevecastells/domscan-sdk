@@ -11,3 +11,7 @@ build/
 obj/
 target/
 *.class
+*.egg-info/
+*.gem
+.venv/
+Cargo.lock

@@ -2,13 +2,15 @@
 
 Official Python client for the [DomScan API](https://domscan.net/docs).
 
-The SDK is generated from DomScan's endpoint registry, so the public client surface stays aligned with the live API. This release exposes 79 public endpoints across availability, DNS, WHOIS, security, pricing, recipes, and intelligence workflows.
+The SDK is generated from DomScan's endpoint registry, so the public client surface stays aligned with the live API. Version 0.2.0 exposes 113 public non-session endpoints across availability, DNS, WHOIS, security, pricing, recipes, and intelligence workflows.
 
 ## Installation
 
 ```bash
-pip install domscan-sdk
+pip install https://github.com/estevecastells/domscan-sdk/releases/latest/download/domscan-sdk-python.tar.gz
 ```
+
+The GitHub release archive is the supported installation path for this version. The PyPI package name is reserved but is not yet published to the public registry.
 
 ## Quick Start
 
@@ -57,6 +59,10 @@ client = DomScan(
 whois = client.osint.get_whois(domain="openai.com")
 dns = client.dns.get_dns_records(domain="openai.com", type="MX")
 prices = client.pricing.get_tld_pricing(tld="ai")
+popularity = client.domain.get_domain_popularity(
+    domain="openai.com",
+    include_history=True,
+)
 ```
 
 ## Error Handling
@@ -76,4 +82,5 @@ except DomScanAPIError as error:
 
 - Docs: [https://domscan.net/docs](https://domscan.net/docs)
 - OpenAPI: [https://domscan.net/v1/openapi.json](https://domscan.net/v1/openapi.json)
+- Releases: [https://github.com/estevecastells/domscan-sdk/releases](https://github.com/estevecastells/domscan-sdk/releases)
 - Repo hub: [../README.md](../README.md)

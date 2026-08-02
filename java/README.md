@@ -2,12 +2,13 @@
 
 Official Java client for the [DomScan API](https://domscan.net/docs).
 
-This SDK is generated from the shared endpoint manifest in this repository and covers the same 79 public non-session endpoints as the other official DomScan SDKs.
+This SDK is generated from the shared endpoint manifest in this repository and covers the same 113 public non-session endpoints as the other official DomScan SDKs.
 
 ## Installation
 
 ```bash
-mvn dependency:get -Dartifact=net.domscan:domscan-sdk-java:0.1.0
+curl -LO https://github.com/estevecastells/domscan-sdk/releases/latest/download/domscan-sdk-java-0.2.0.jar
+mvn install:install-file -Dfile=domscan-sdk-java-0.2.0.jar -DgroupId=net.domscan -DartifactId=domscan-sdk-java -Dversion=0.2.0 -Dpackaging=jar
 ```
 
 ## Quick Start
