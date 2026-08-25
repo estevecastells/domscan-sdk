@@ -65,6 +65,7 @@ type Client struct {
 	Recipes *RecipesService
 	Security *SecurityService
 	Social *SocialService
+	User *UserService
 }
 
 func NewClient(config *Config) *Client {
@@ -72,7 +73,7 @@ func NewClient(config *Config) *Client {
 	timeout := 10 * time.Second
 	headers := map[string]string{}
 	apiKey := os.Getenv("DOMSCAN_API_KEY")
-	userAgent := "domscan-go/0.2.0"
+	userAgent := "domscan-go/0.3.0"
 	var httpClient *http.Client
 
 	if config != nil {
@@ -117,6 +118,7 @@ func NewClient(config *Config) *Client {
 	client.Recipes = &RecipesService{client: client}
 	client.Security = &SecurityService{client: client}
 	client.Social = &SocialService{client: client}
+	client.User = &UserService{client: client}
 	return client
 }
 
@@ -307,13 +309,24 @@ func (s *AvailabilityService) CheckDomainAvailability(ctx context.Context, param
 	}, params)
 }
 
+// Create a resumable asynchronous search over a curated English single-word corpus sourced from iannuttall/unclaimed under the MIT License. Check each selected word across 1 to 5 supported TLDs, with a hard limit of 100 word-TLD checks per job. Available, registered, and unknown remain distinct outcomes. Jobs use the existing batch status, results, and cancellation lifecycle.
+func (s *AvailabilityService) CreateDomainDiscoveryJob(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/domain-discovery/jobs",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
 // Get information about which TLDs are supported and their RDAP server status.
 func (s *AvailabilityService) GetCoverage(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/coverage",
 		PathParams: []string{},
-		QueryParams: []string{},
+		QueryParams: []string{"live"},
 		HasBody: false,
 	}, params)
 }
@@ -410,7 +423,7 @@ func (s *DnsService) GetDnsHistory(ctx context.Context, params Params) (any, err
 	}, params)
 }
 
-// Compare DNS answers from DomScan's configured Cloudflare and Google public recursive DoH providers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
+// Compare answers from DomScan's configured public recursive resolvers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
 func (s *DnsService) GetDnsPropagation(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
@@ -524,7 +537,7 @@ func (s *DomainService) CompareDomains(ctx context.Context, params Params) (any,
 	}, params)
 }
 
-// Comprehensive health checks with DNS, SSL, email, proxy-enriched TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
+// Comprehensive health checks with DNS, SSL, email, extended TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
 func (s *DomainService) GetDomainHealth(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
@@ -640,7 +653,7 @@ func (s *DomainService) GetTlds(ctx context.Context, params Params) (any, error)
 		Method: "GET",
 		Path: "/v1/tlds",
 		PathParams: []string{},
-		QueryParams: []string{"type"},
+		QueryParams: []string{"type", "trust_tier", "use_case"},
 		HasBody: false,
 	}, params)
 }
@@ -704,7 +717,7 @@ func (s *IntelligenceService) BulkResolveInternetIdentity(ctx context.Context, p
 	}, params)
 }
 
-// Cancel unstarted technology scan work and settle item-level refunds. An already running browser scan may finish, but its result is discarded.
+// Cancel unstarted technology scan work and settle item-level refunds. Work already in progress may finish and remains available in the job results.
 func (s *IntelligenceService) CancelTechScanJob(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "DELETE",
@@ -737,6 +750,17 @@ func (s *IntelligenceService) CategorizeWebsiteBulk(ctx context.Context, params 
 	}, params)
 }
 
+// Queue 1 to 100 public page scrapes for asynchronous processing. Batch jobs are available to paid accounts, require an idempotency key, allow up to three active jobs and 300 queued items per account, and bill each accepted URL at the selected mode price. CAPTCHA solving and premium proxy selection are not offered.
+func (s *IntelligenceService) CreateScrapeJob(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/scrape/jobs",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
+	}, params)
+}
+
 // Create a durable asynchronous technology scan job for up to 100 public targets. Supports fast, JavaScript-rendered, and bounded same-origin deep modes with item-level billing and refunds.
 func (s *IntelligenceService) CreateTechScanJob(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
@@ -759,7 +783,7 @@ func (s *IntelligenceService) GetCategorizationTaxonomy(ctx context.Context, par
 	}, params)
 }
 
-// Extract company information from a domain. Get name, industry, and contact details.
+// Extract source-backed organization names, descriptions, declared social links, MX-inferred email providers, confidence, and provenance from public website and DNS metadata. Enrichment-only fields can be null.
 func (s *IntelligenceService) GetCompany(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
@@ -814,6 +838,28 @@ func (s *IntelligenceService) GetRedirects(ctx context.Context, params Params) (
 	}, params)
 }
 
+// Get owner-scoped progress, item counts, billing settlement, and expiration details.
+func (s *IntelligenceService) GetScrapeJob(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/scrape/jobs/:job_id",
+		PathParams: []string{"job_id"},
+		QueryParams: []string{},
+		HasBody: false,
+	}, params)
+}
+
+// Get ordered, paginated results for an owner-scoped scrape job. Full page results expire after 24 hours.
+func (s *IntelligenceService) GetScrapeJobResults(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/scrape/jobs/:job_id/results",
+		PathParams: []string{"job_id"},
+		QueryParams: []string{"limit", "offset"},
+		HasBody: false,
+	}, params)
+}
+
 // Get owner-scoped progress, item counts, billing settlement, and expiration details for a technology scan job.
 func (s *IntelligenceService) GetTechScanJob(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
@@ -853,7 +899,7 @@ func (s *IntelligenceService) GetUrlIntelligence(ctx context.Context, params Par
 		Method: "GET",
 		Path: "/v1/url-intelligence",
 		PathParams: []string{},
-		QueryParams: []string{"url"},
+		QueryParams: []string{"url", "skip_cache"},
 		HasBody: false,
 	}, params)
 }
@@ -864,7 +910,7 @@ func (s *IntelligenceService) GetWebsiteIdentityAssets(ctx context.Context, para
 		Method: "GET",
 		Path: "/v1/identity-assets",
 		PathParams: []string{},
-		QueryParams: []string{"domain"},
+		QueryParams: []string{"domain", "skip_cache"},
 		HasBody: false,
 	}, params)
 }
@@ -880,7 +926,7 @@ func (s *IntelligenceService) ListTechScanJobs(ctx context.Context, params Param
 	}, params)
 }
 
-// Run up to 10 ordered fast technology scans in one request. Each valid target is billed independently, and failed upstream scans are refunded independently.
+// Run up to 10 ordered fast technology scans in one request. Each attempted target is billed independently, including target-site failures. Verified DomScan service failures are refunded independently.
 func (s *IntelligenceService) PostTechStackBulk(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "POST",
@@ -897,8 +943,19 @@ func (s *IntelligenceService) ResolveInternetIdentity(ctx context.Context, param
 		Method: "GET",
 		Path: "/v1/identity-resolution",
 		PathParams: []string{},
-		QueryParams: []string{"domain"},
+		QueryParams: []string{"domain", "skip_cache"},
 		HasBody: false,
+	}, params)
+}
+
+// Retrieve one public web page with bounded redirects and response size. Standard requests use one attempt, resilient requests may use one eligible retry, and rendered modes execute page JavaScript in an isolated browser. Free accounts can use standard mode with lower request, concurrency, daily, monthly, and response-size limits. CAPTCHA solving and premium proxy selection are not offered. Target-site failures remain billable after processing starts; verified platform failures are refunded.
+func (s *IntelligenceService) ScrapePage(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "POST",
+		Path: "/v1/scrape",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: true,
 	}, params)
 }
 
@@ -917,7 +974,7 @@ func (s *MetaService) CancelApiBatch(ctx context.Context, params Params) (any, e
 	}, params)
 }
 
-// Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and failed items are refunded independently.
+// Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and refund rules. Target-site outcomes remain billed, while verified service failures are refunded independently.
 func (s *MetaService) CreateApiBatch(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "POST",
@@ -1097,6 +1154,17 @@ func (s *OsintService) GetWhoisHistory(ctx context.Context, params Params) (any,
 	}, params)
 }
 
+// Fetch RDAP and traditional WHOIS in parallel, then merge available abuse contacts, registrar WHOIS details, glue addresses, and raw WHOIS evidence into the normalized response.
+func (s *OsintService) GetWhoisV2(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v2/whois",
+		PathParams: []string{},
+		QueryParams: []string{"domain"},
+		HasBody: false,
+	}, params)
+}
+
 type PricingService struct {
 	client *Client
 }
@@ -1177,7 +1245,7 @@ func (s *RecipesService) RecipeCompetitorIntel(ctx context.Context, params Param
 		Method: "GET",
 		Path: "/v1/recipes/competitor-intel",
 		PathParams: []string{},
-		QueryParams: []string{"domain", "discover_subdomains", "analyze_email"},
+		QueryParams: []string{"domain", "discover_subdomains", "analyze_infrastructure", "analyze_email"},
 		HasBody: false,
 	}, params)
 }
@@ -1265,7 +1333,7 @@ func (s *RecipesService) RecipePortfolioAudit(ctx context.Context, params Params
 		Method: "GET",
 		Path: "/v1/recipes/portfolio-audit",
 		PathParams: []string{},
-		QueryParams: []string{"domains", "include_valuation", "include_health", "alert_expiring_days"},
+		QueryParams: []string{"domains", "include_valuation", "include_health", "include_pricing", "alert_expiring_days"},
 		HasBody: false,
 	}, params)
 }
@@ -1287,7 +1355,7 @@ func (s *RecipesService) RecipeThreatAssessment(ctx context.Context, params Para
 		Method: "GET",
 		Path: "/v1/recipes/threat-assessment",
 		PathParams: []string{},
-		QueryParams: []string{"domain", "max_threats", "include_evidence"},
+		QueryParams: []string{"domain", "analyze_threats", "max_threats", "include_evidence"},
 		HasBody: false,
 	}, params)
 }
@@ -1384,7 +1452,7 @@ func (s *SecurityService) GetEmailAuth(ctx context.Context, params Params) (any,
 	}, params)
 }
 
-// Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and proxy-backed mail security checks.
+// Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and mail security checks.
 func (s *SecurityService) GetEmailCompliance(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
@@ -1434,7 +1502,7 @@ func (s *SecurityService) GetSslExpiring(ctx context.Context, params Params) (an
 		Method: "GET",
 		Path: "/v1/ssl/expiring",
 		PathParams: []string{},
-		QueryParams: []string{"domain", "threshold_days"},
+		QueryParams: []string{"domain", "days", "threshold_days"},
 		HasBody: false,
 	}, params)
 }
@@ -1450,7 +1518,7 @@ func (s *SecurityService) GetSslGrade(ctx context.Context, params Params) (any, 
 	}, params)
 }
 
-// Return best-effort public hostname evidence from a sequential passive pipeline. Discovery tries crt.sh first, then can fall back to HackerTarget, ThreatMiner, the Wayback Machine, and CertSpotter. Results include their evidence source. DomScan does not brute-force names or crawl the target site, so coverage is incomplete.
+// Return best-effort hostname evidence from public certificate and passive discovery sources. Coverage is incomplete, and results include provenance with optional DNS verification.
 func (s *SecurityService) GetSubdomains(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
@@ -1472,7 +1540,7 @@ func (s *SecurityService) GetTyposquatting(ctx context.Context, params Params) (
 	}, params)
 }
 
-// Find exposed software versions and deterministic web security misconfigurations using verified technology evidence, exact OSV package matching, CISA Known Exploited Vulnerabilities, FIRST EPSS, and isolated Edge Relay rendering. Results separate affected versions from configuration findings and preserve unknown coverage.
+// Correlate exposed software versions with authoritative public advisories and exploitation-priority data, and report deterministic web security misconfigurations separately. Results preserve evidence and unknown coverage.
 func (s *SecurityService) GetVulnerabilities(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
@@ -1483,7 +1551,7 @@ func (s *SecurityService) GetVulnerabilities(ctx context.Context, params Params)
 	}, params)
 }
 
-// Validate, normalize, and enrich international phone numbers with country-specific coverage levels, offline numbering-plan, location, time-zone, original prefix-carrier, portability-support, dialing, short-number, service, and official allocation metadata. US NANPA and Canadian CNA/CNAC snapshots add NPA-NXX central office code status and original code-holder evidence. DomScan uses its own Edge Relay and free local datasets without paid or per-number third-party lookups. Results never claim current carrier, reachability, subscriber identity, or individual-number assignment.
+// Validate, normalize, and enrich international phone numbers with maintained offline numbering-plan and public allocation data. Results include coverage, provenance, freshness, and limitations without paid or per-number third-party lookups, and never claim current carrier, reachability, subscriber identity, or individual-number assignment.
 func (s *SecurityService) ValidatePhoneNumber(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "POST",
@@ -1494,7 +1562,7 @@ func (s *SecurityService) ValidatePhoneNumber(ctx context.Context, params Params
 	}, params)
 }
 
-// Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and uses one DomScan Edge Relay batch with zero paid or per-number third-party lookups.
+// Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and makes no paid or per-number third-party lookup.
 func (s *SecurityService) ValidatePhoneNumbersBulk(ctx context.Context, params Params) (any, error) {
 	return s.client.request(ctx, endpointDefinition{
 		Method: "POST",
@@ -1558,6 +1626,21 @@ func (s *SocialService) GetSocialInfo(ctx context.Context, params Params) (any, 
 	return s.client.request(ctx, endpointDefinition{
 		Method: "GET",
 		Path: "/v1/social/info",
+		PathParams: []string{},
+		QueryParams: []string{},
+		HasBody: false,
+	}, params)
+}
+
+type UserService struct {
+	client *Client
+}
+
+// Get the active customer account credit balance without exposing transaction history.
+func (s *UserService) GetCreditBalance(ctx context.Context, params Params) (any, error) {
+	return s.client.request(ctx, endpointDefinition{
+		Method: "GET",
+		Path: "/v1/credits",
 		PathParams: []string{},
 		QueryParams: []string{},
 		HasBody: false,

@@ -1,14 +1,13 @@
-DomScan SDK v0.2.0 is the first tagged GitHub release for the official DomScan client libraries.
+# DomScan SDK v0.3.0
 
-This release includes:
+This release makes the TypeScript and Python SDKs first-class typed clients for DomScan API v2.15.0.
 
-- Generated clients for Node.js, Python, Go, Ruby, PHP, Java, C#, Kotlin, Swift, and Rust.
-- 113 public non-session API operations across 10 namespaces, up from 79 in the initial source publication.
-- New popularity, asynchronous batch, technology scan, bulk enrichment, RDAP, SSL audit, vulnerability, phone validation, and social intelligence operations.
-- Consistent v0.2.0 package metadata and runtime identification across the maintained clients.
-- Node.js handling for timeouts, caller cancellation, empty responses, and problem JSON errors.
-- Python handling for empty, malformed, and problem JSON responses.
-- Repeatable generation for all ten language clients from one endpoint manifest.
-- Automated compilation, package checks, and release assets through GitHub Actions.
+- The TypeScript SDK now includes generated request and response types for every supported operation, with precise full-response overloads.
+- The Python SDK now includes generated `TypedDict` response models, keyword parameter stubs, `py.typed`, and precise full-response overloads validated with mypy.
+- Both SDKs expose request IDs, credits, rate limits, response time, API version, and data freshness through optional full-response metadata.
+- Structured API errors map to actionable classes with stable type, code, HTTP status, retry guidance, request ID, and documentation fields.
+- Safe retries honor `Retry-After`. GET requests can retry automatically, while write retries require an explicit idempotency key.
+- Empty and malformed JSON responses, caller cancellation, network failures, timeouts, and Python keyword aliases now have deterministic behavior and test coverage.
+- The shared endpoint manifest now covers 120 public non-session operations across 11 namespaces.
 
-Package registry availability varies by language. Each language README documents the supported GitHub installation path.
+The GitHub release includes installable Node.js and Python archives plus the maintained release artifacts for Go, Ruby, PHP, Java, C#, Kotlin, Swift, and Rust.

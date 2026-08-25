@@ -6,6 +6,7 @@
 export const endpointManifest = {
   "availability": {
     "bulkCheckDomains": {
+      "operationId": "bulkCheckDomains",
       "title": "Bulk Domain Check",
       "description": "Check availability of multiple complete domain names at once.",
       "method": "POST",
@@ -15,6 +16,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "checkDomainAvailability": {
+      "operationId": "checkDomainAvailability",
       "title": "Domain Availability",
       "description": "Check if a domain name is available for registration across multiple TLDs. Uses RDAP for authoritative results. Primary format: name + tlds. Single-domain shortcut: domain=example.com.",
       "method": "GET",
@@ -28,18 +30,32 @@ export const endpointManifest = {
       ],
       "hasBody": false
     },
+    "createDomainDiscoveryJob": {
+      "operationId": "createDomainDiscoveryJob",
+      "title": "Create Domain Discovery Job",
+      "description": "Create a resumable asynchronous search over a curated English single-word corpus sourced from iannuttall/unclaimed under the MIT License. Check each selected word across 1 to 5 supported TLDs, with a hard limit of 100 word-TLD checks per job. Available, registered, and unknown remain distinct outcomes. Jobs use the existing batch status, results, and cancellation lifecycle.",
+      "method": "POST",
+      "path": "/v1/domain-discovery/jobs",
+      "pathParams": [],
+      "queryParams": [],
+      "hasBody": true
+    },
     "getCoverage": {
+      "operationId": "getCoverage",
       "title": "RDAP Coverage",
       "description": "Get information about which TLDs are supported and their RDAP server status.",
       "method": "GET",
       "path": "/v1/coverage",
       "pathParams": [],
-      "queryParams": [],
+      "queryParams": [
+        "live"
+      ],
       "hasBody": false
     }
   },
   "dns": {
     "buildDmarc": {
+      "operationId": "buildDmarc",
       "title": "DMARC Builder",
       "description": "Build a DMARC record with policy, reporting, and alignment options.",
       "method": "POST",
@@ -49,6 +65,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "buildSpf": {
+      "operationId": "buildSpf",
       "title": "SPF Builder",
       "description": "Build an SPF record from configuration options with validation and recommendations.",
       "method": "POST",
@@ -58,6 +75,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "bulkDnsPropagation": {
+      "operationId": "bulkDnsPropagation",
       "title": "Bulk DNS Resolver Comparison",
       "description": "Compare answers from the configured public recursive DNS resolvers for up to 10 domains. Results preserve input order and report per-domain errors.",
       "method": "POST",
@@ -67,6 +85,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "checkDkim": {
+      "operationId": "checkDkim",
       "title": "DKIM Check",
       "description": "Check a specific DKIM selector for a domain and validate the public key.",
       "method": "GET",
@@ -79,6 +98,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "discoverDkim": {
+      "operationId": "discoverDkim",
       "title": "DKIM Discovery",
       "description": "Discover DKIM selectors for a domain by checking common selector names.",
       "method": "GET",
@@ -90,6 +110,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "flattenSpf": {
+      "operationId": "flattenSpf",
       "title": "SPF Flattener",
       "description": "Flatten SPF record by resolving all includes into IP addresses to reduce DNS lookups.",
       "method": "POST",
@@ -99,6 +120,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "getAllDnsRecords": {
+      "operationId": "getAllDnsRecords",
       "title": "DNS All Records",
       "description": "Get all major DNS record types for a domain in a single call with IPv6 parity, TXT classification, wildcard probe, and warning signals.",
       "method": "GET",
@@ -111,6 +133,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDnsHistory": {
+      "operationId": "getDnsHistory",
       "title": "DNS History",
       "description": "Review day-level DNS record values observed by successful DomScan DNS lookups. This lookup-driven observation log can miss changes between lookups and does not include external passive DNS sources.",
       "method": "GET",
@@ -126,8 +149,9 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDnsPropagation": {
+      "operationId": "getDnsPropagation",
       "title": "DNS Resolver Comparison",
-      "description": "Compare DNS answers from DomScan's configured Cloudflare and Google public recursive DoH providers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.",
+      "description": "Compare answers from DomScan's configured public recursive resolvers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.",
       "method": "GET",
       "path": "/v1/dns/propagation",
       "pathParams": [],
@@ -139,6 +163,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDnsRecords": {
+      "operationId": "getDnsRecords",
       "title": "DNS Lookup",
       "description": "Query A, AAAA, MX, NS, TXT, CAA and other DNS records programmatically with TXT classification and additive warning signals.",
       "method": "GET",
@@ -151,6 +176,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDnsSecurity": {
+      "operationId": "getDnsSecurity",
       "title": "DNS Security",
       "description": "Analyze DNS security configuration including SPF, DKIM, DMARC, DNSSEC, CAA, MTA-STS, TLS-RPT, resolver latency, and AXFR exposure.",
       "method": "GET",
@@ -162,6 +188,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDnsServers": {
+      "operationId": "getDnsServers",
       "title": "DNS Resolver Providers",
       "description": "List the public recursive DoH providers used for resolver comparison. These are global anycast services, not geographic probes.",
       "method": "GET",
@@ -171,6 +198,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "validateDmarc": {
+      "operationId": "validateDmarc",
       "title": "DMARC Validator",
       "description": "Validate a DMARC record for syntax errors and configuration issues.",
       "method": "POST",
@@ -180,6 +208,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "validateSpf": {
+      "operationId": "validateSpf",
       "title": "SPF Validator",
       "description": "Validate an SPF record for syntax errors, DNS lookup limits, and best practices.",
       "method": "POST",
@@ -191,6 +220,7 @@ export const endpointManifest = {
   },
   "domain": {
     "bulkDomainValue": {
+      "operationId": "bulkDomainValue",
       "title": "Bulk Domain Valuation",
       "description": "Get value estimates for multiple domains at once.",
       "method": "POST",
@@ -200,6 +230,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "bulkGetDomainProfile": {
+      "operationId": "bulkGetDomainProfile",
       "title": "Domain Profile",
       "description": "Get normalized RDAP registration data: registrar, dates, nameservers, DNSSEC status.",
       "method": "POST",
@@ -209,6 +240,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "compareBrandNames": {
+      "operationId": "compareBrandNames",
       "title": "Compare Brand Names",
       "description": "Compare up to 50 candidate brand names and return ranked scores.",
       "method": "POST",
@@ -218,6 +250,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "compareDomains": {
+      "operationId": "compareDomains",
       "title": "Domain Compare",
       "description": "Compare two domains side-by-side across multiple metrics and attributes.",
       "method": "GET",
@@ -229,8 +262,9 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDomainHealth": {
+      "operationId": "getDomainHealth",
       "title": "Domain Health",
-      "description": "Comprehensive health checks with DNS, SSL, email, proxy-enriched TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.",
+      "description": "Comprehensive health checks with DNS, SSL, email, extended TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.",
       "method": "GET",
       "path": "/v1/health",
       "pathParams": [],
@@ -241,6 +275,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDomainOverview": {
+      "operationId": "getDomainOverview",
       "title": "Domain Overview",
       "description": "Aggregate DNS, RDAP registration, health, reputation, and popularity observations in one response, with null unknowns and per-component freshness.",
       "method": "GET",
@@ -252,6 +287,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDomainPopularity": {
+      "operationId": "getDomainPopularity",
       "title": "Domain Popularity",
       "description": "Get the current research-grade Tranco rank and bucket for a domain, with explicit ranked, unranked, and unknown states, source date, cache state, and optional lookup-driven history.",
       "method": "GET",
@@ -265,6 +301,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDomainPopularityHistory": {
+      "operationId": "getDomainPopularityHistory",
       "title": "Domain Popularity History",
       "description": "Read prior Tranco observations recorded by DomScan lookups. This is a lookup-driven history, not a complete daily rank series.",
       "method": "GET",
@@ -277,6 +314,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDomainProfile": {
+      "operationId": "getDomainProfile",
       "title": "Domain Profile",
       "description": "Get normalized RDAP registration data: registrar, dates, nameservers, DNSSEC status.",
       "method": "GET",
@@ -288,6 +326,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDomainScore": {
+      "operationId": "getDomainScore",
       "title": "Domain Score",
       "description": "Calculate an overall domain quality score based on multiple factors.",
       "method": "GET",
@@ -300,6 +339,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDomainValue": {
+      "operationId": "getDomainValue",
       "title": "Domain Valuation",
       "description": "Algorithmic domain value estimates based on length, TLD tier, dictionary words, and brandability.",
       "method": "GET",
@@ -311,6 +351,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getQuickHealth": {
+      "operationId": "getQuickHealth",
       "title": "Quick Health Check",
       "description": "Fast health check with essential metrics only.",
       "method": "GET",
@@ -322,6 +363,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getScoreInfo": {
+      "operationId": "getScoreInfo",
       "title": "Brand Scoring Reference",
       "description": "Returns scoring dimensions, grade scale, and related scoring endpoints.",
       "method": "GET",
@@ -331,6 +373,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getTldDetail": {
+      "operationId": "getTldDetail",
       "title": "TLD Detail",
       "description": "Get detailed information about a specific TLD.",
       "method": "GET",
@@ -342,17 +385,21 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getTlds": {
+      "operationId": "getTlds",
       "title": "TLD List",
       "description": "Get list of all supported TLDs with metadata.",
       "method": "GET",
       "path": "/v1/tlds",
       "pathParams": [],
       "queryParams": [
-        "type"
+        "type",
+        "trust_tier",
+        "use_case"
       ],
       "hasBody": false
     },
     "suggestDomains": {
+      "operationId": "suggestDomains",
       "title": "Domain Suggestions",
       "description": "AI-powered domain name generator. Get brandable, short, and keyword-rich suggestions based on your keywords.",
       "method": "GET",
@@ -372,6 +419,7 @@ export const endpointManifest = {
   },
   "intelligence": {
     "bulkGetHosting": {
+      "operationId": "bulkGetHosting",
       "title": "Bulk Hosting Detection",
       "description": "Detect hosting, CDN, WAF, DNS, and email infrastructure for up to 10 domains. Results preserve input order and include per-domain errors.",
       "method": "POST",
@@ -381,6 +429,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "bulkGetUrlIntelligence": {
+      "operationId": "bulkGetUrlIntelligence",
       "title": "Bulk Unified URL Intelligence",
       "description": "Extract normalized URL intelligence for up to 10 public URLs. Results preserve input order and include per-item errors.",
       "method": "POST",
@@ -390,6 +439,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "bulkGetWebsiteIdentityAssets": {
+      "operationId": "bulkGetWebsiteIdentityAssets",
       "title": "Bulk Website Identity Assets",
       "description": "Extract website identity assets for up to 10 domains. Results preserve input order and include per-item errors.",
       "method": "POST",
@@ -399,6 +449,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "bulkResolveInternetIdentity": {
+      "operationId": "bulkResolveInternetIdentity",
       "title": "Bulk Internet Identity Resolution",
       "description": "Resolve public identities for up to 10 company domains. Results preserve input order and include per-item errors.",
       "method": "POST",
@@ -408,8 +459,9 @@ export const endpointManifest = {
       "hasBody": true
     },
     "cancelTechScanJob": {
+      "operationId": "cancelTechScanJob",
       "title": "Cancel Async Tech Scan Job",
-      "description": "Cancel unstarted technology scan work and settle item-level refunds. An already running browser scan may finish, but its result is discarded.",
+      "description": "Cancel unstarted technology scan work and settle item-level refunds. Work already in progress may finish and remains available in the job results.",
       "method": "DELETE",
       "path": "/v1/tech/jobs/:job_id",
       "pathParams": [
@@ -419,6 +471,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "categorizeWebsite": {
+      "operationId": "categorizeWebsite",
       "title": "Website Categorization",
       "description": "Classify websites into DomScan IAB-inspired categories using multi-signal analysis: keywords, schema.org, Open Graph, TLD heuristics, URL patterns, and HTML structure.",
       "method": "GET",
@@ -433,6 +486,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "categorizeWebsiteBulk": {
+      "operationId": "categorizeWebsiteBulk",
       "title": "Bulk Website Categorization",
       "description": "Categorize up to 10 websites in parallel with caching.",
       "method": "POST",
@@ -441,7 +495,18 @@ export const endpointManifest = {
       "queryParams": [],
       "hasBody": true
     },
+    "createScrapeJob": {
+      "operationId": "createScrapeJob",
+      "title": "Create Async Scrape Job",
+      "description": "Queue 1 to 100 public page scrapes for asynchronous processing. Batch jobs are available to paid accounts, require an idempotency key, allow up to three active jobs and 300 queued items per account, and bill each accepted URL at the selected mode price. CAPTCHA solving and premium proxy selection are not offered.",
+      "method": "POST",
+      "path": "/v1/scrape/jobs",
+      "pathParams": [],
+      "queryParams": [],
+      "hasBody": true
+    },
     "createTechScanJob": {
+      "operationId": "createTechScanJob",
       "title": "Create Async Tech Scan Job",
       "description": "Create a durable asynchronous technology scan job for up to 100 public targets. Supports fast, JavaScript-rendered, and bounded same-origin deep modes with item-level billing and refunds.",
       "method": "POST",
@@ -451,6 +516,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "getCategorizationTaxonomy": {
+      "operationId": "getCategorizationTaxonomy",
       "title": "Categorization Taxonomy",
       "description": "List the DomScan IAB-inspired category IDs, response category names, taxonomy names, and subcategories returned by the Website Categorization API.",
       "method": "GET",
@@ -460,8 +526,9 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getCompany": {
+      "operationId": "getCompany",
       "title": "Company Lookup",
-      "description": "Extract company information from a domain. Get name, industry, and contact details.",
+      "description": "Extract source-backed organization names, descriptions, declared social links, MX-inferred email providers, confidence, and provenance from public website and DNS metadata. Enrichment-only fields can be null.",
       "method": "GET",
       "path": "/v1/company",
       "pathParams": [],
@@ -471,6 +538,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDomainSimilarity": {
+      "operationId": "getDomainSimilarity",
       "title": "Domain Similarity",
       "description": "Compare domains for similarity. Detect typosquatting with multiple algorithms.",
       "method": "GET",
@@ -483,6 +551,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getHosting": {
+      "operationId": "getHosting",
       "title": "Hosting Detection",
       "description": "Detect hosting provider, CDN, WAF, DNS provider, and email infrastructure.",
       "method": "GET",
@@ -494,6 +563,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getParkingDetection": {
+      "operationId": "getParkingDetection",
       "title": "Parking Detection",
       "description": "Detect if a domain is parked or listed for sale on aftermarket platforms. Identifies parking providers via DNS, HTTP redirect, and HTML content analysis.",
       "method": "GET",
@@ -505,6 +575,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getRedirects": {
+      "operationId": "getRedirects",
       "title": "Redirect Chain",
       "description": "Follow URL redirect chains. Detect HTTPS upgrades, domain changes, and landing pages.",
       "method": "GET",
@@ -516,7 +587,35 @@ export const endpointManifest = {
       ],
       "hasBody": false
     },
+    "getScrapeJob": {
+      "operationId": "getScrapeJob",
+      "title": "Get Async Scrape Job",
+      "description": "Get owner-scoped progress, item counts, billing settlement, and expiration details.",
+      "method": "GET",
+      "path": "/v1/scrape/jobs/:job_id",
+      "pathParams": [
+        "job_id"
+      ],
+      "queryParams": [],
+      "hasBody": false
+    },
+    "getScrapeJobResults": {
+      "operationId": "getScrapeJobResults",
+      "title": "Get Async Scrape Results",
+      "description": "Get ordered, paginated results for an owner-scoped scrape job. Full page results expire after 24 hours.",
+      "method": "GET",
+      "path": "/v1/scrape/jobs/:job_id/results",
+      "pathParams": [
+        "job_id"
+      ],
+      "queryParams": [
+        "limit",
+        "offset"
+      ],
+      "hasBody": false
+    },
     "getTechScanJob": {
+      "operationId": "getTechScanJob",
       "title": "Get Async Tech Scan Job",
       "description": "Get owner-scoped progress, item counts, billing settlement, and expiration details for a technology scan job.",
       "method": "GET",
@@ -528,6 +627,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getTechScanJobResults": {
+      "operationId": "getTechScanJobResults",
       "title": "Get Async Tech Scan Results",
       "description": "Get ordered, signed-cursor-paginated results for a technology scan job. Full results expire after 48 hours and operational job records expire after seven days.",
       "method": "GET",
@@ -542,6 +642,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getTechStack": {
+      "operationId": "getTechStack",
       "title": "Tech Stack Detection",
       "description": "Detect 500+ verified website technologies across 80+ categories using bounded HTTP signals, rendered JavaScript globals, observed network URLs, and same-origin multi-page analysis. Returns confidence, sanitized evidence scoped to each page, caveats, provenance, explicit limits, and complete or partial coverage.",
       "method": "GET",
@@ -557,28 +658,33 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getUrlIntelligence": {
+      "operationId": "getUrlIntelligence",
       "title": "Unified URL Intelligence",
       "description": "Extract normalized metadata, link-preview assets, Open Graph and Twitter Card fields, canonical URL, robots directives, structured-data types, security headers, links, contacts, and declared profiles from a public URL.",
       "method": "GET",
       "path": "/v1/url-intelligence",
       "pathParams": [],
       "queryParams": [
-        "url"
+        "url",
+        "skip_cache"
       ],
       "hasBody": false
     },
     "getWebsiteIdentityAssets": {
+      "operationId": "getWebsiteIdentityAssets",
       "title": "Website Identity Assets",
       "description": "Discover a website organization name, logo candidates, favicons, touch icons, preview image, theme color, manifest, and declared social profiles from public website metadata.",
       "method": "GET",
       "path": "/v1/identity-assets",
       "pathParams": [],
       "queryParams": [
-        "domain"
+        "domain",
+        "skip_cache"
       ],
       "hasBody": false
     },
     "listTechScanJobs": {
+      "operationId": "listTechScanJobs",
       "title": "List Async Tech Scan Jobs",
       "description": "List recent short-lived technology scan jobs for the authenticated account.",
       "method": "GET",
@@ -591,8 +697,9 @@ export const endpointManifest = {
       "hasBody": false
     },
     "postTechStackBulk": {
+      "operationId": "postTechStackBulk",
       "title": "Bulk Tech Stack Detection",
-      "description": "Run up to 10 ordered fast technology scans in one request. Each valid target is billed independently, and failed upstream scans are refunded independently.",
+      "description": "Run up to 10 ordered fast technology scans in one request. Each attempted target is billed independently, including target-site failures. Verified DomScan service failures are refunded independently.",
       "method": "POST",
       "path": "/v1/tech/bulk",
       "pathParams": [],
@@ -600,19 +707,32 @@ export const endpointManifest = {
       "hasBody": true
     },
     "resolveInternetIdentity": {
+      "operationId": "resolveInternetIdentity",
       "title": "Internet Identity Resolution",
       "description": "Resolve a company domain into public social, developer, creator, federated, and app-store identities explicitly declared by its website.",
       "method": "GET",
       "path": "/v1/identity-resolution",
       "pathParams": [],
       "queryParams": [
-        "domain"
+        "domain",
+        "skip_cache"
       ],
       "hasBody": false
+    },
+    "scrapePage": {
+      "operationId": "scrapePage",
+      "title": "Single Page Scrape",
+      "description": "Retrieve one public web page with bounded redirects and response size. Standard requests use one attempt, resilient requests may use one eligible retry, and rendered modes execute page JavaScript in an isolated browser. Free accounts can use standard mode with lower request, concurrency, daily, monthly, and response-size limits. CAPTCHA solving and premium proxy selection are not offered. Target-site failures remain billable after processing starts; verified platform failures are refunded.",
+      "method": "POST",
+      "path": "/v1/scrape",
+      "pathParams": [],
+      "queryParams": [],
+      "hasBody": true
     }
   },
   "meta": {
     "cancelApiBatch": {
+      "operationId": "cancelApiBatch",
       "title": "Cancel Async API Batch",
       "description": "Cancel unstarted batch items and refund their item charges. An item already being processed may finish.",
       "method": "DELETE",
@@ -624,8 +744,9 @@ export const endpointManifest = {
       "hasBody": false
     },
     "createApiBatch": {
+      "operationId": "createApiBatch",
       "title": "Create Async API Batch",
-      "description": "Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and failed items are refunded independently.",
+      "description": "Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and refund rules. Target-site outcomes remain billed, while verified service failures are refunded independently.",
       "method": "POST",
       "path": "/v1/batches",
       "pathParams": [],
@@ -633,6 +754,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "downloadEmailBlacklist": {
+      "operationId": "downloadEmailBlacklist",
       "title": "Download Disposable Email Dataset",
       "description": "Download the full disposable email domain dataset in various formats.",
       "method": "GET",
@@ -644,6 +766,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getApiBatch": {
+      "operationId": "getApiBatch",
       "title": "Get Async API Batch",
       "description": "Get progress, item counts, billing settlement, webhook delivery state, and expiration for an account API batch.",
       "method": "GET",
@@ -655,6 +778,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getApiBatchResults": {
+      "operationId": "getApiBatchResults",
       "title": "Get Async API Batch Results",
       "description": "Get ordered JSON results or download all items as RFC 4180 CSV for an account API batch. Results and job metadata expire 24 hours after creation.",
       "method": "GET",
@@ -670,6 +794,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getEmailBlacklistInfo": {
+      "operationId": "getEmailBlacklistInfo",
       "title": "Disposable Email Dataset",
       "description": "Browse the disposable email domain dataset as a paginated data feed.",
       "method": "GET",
@@ -683,6 +808,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getPricingInfo": {
+      "operationId": "getPricingInfo",
       "title": "API Pricing Info",
       "description": "Get credit costs per endpoint and API pricing information.",
       "method": "GET",
@@ -692,6 +818,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "listApiBatches": {
+      "operationId": "listApiBatches",
       "title": "List Async API Batches",
       "description": "List unexpired asynchronous API batches for the active customer account.",
       "method": "GET",
@@ -705,6 +832,7 @@ export const endpointManifest = {
   },
   "osint": {
     "bulkGetRdap": {
+      "operationId": "bulkGetRdap",
       "title": "Bulk RDAP Lookup",
       "description": "Query raw RDAP data for up to 10 domains, IP addresses, CIDR ranges, or autonomous system numbers. One query type applies to the whole batch.",
       "method": "POST",
@@ -714,6 +842,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "bulkWhois": {
+      "operationId": "bulkWhois",
       "title": "Bulk WHOIS Lookup",
       "description": "Get WHOIS data for multiple domains at once.",
       "method": "POST",
@@ -723,6 +852,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "getDomainLifecycle": {
+      "operationId": "getDomainLifecycle",
       "title": "Domain Lifecycle",
       "description": "Get domain lifecycle information including registration date, expiration date, age, and lifecycle phase. Returns Fastly-style status flags.",
       "method": "GET",
@@ -734,6 +864,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getIpInfo": {
+      "operationId": "getIpInfo",
       "title": "IP Geolocation",
       "description": "Get IP or resolved-domain geolocation and ASN data, provider security flags, coarse hosting classification, and FCrDNS. PTR-based signals are derived from the IP, never the caller hostname.",
       "method": "GET",
@@ -746,6 +877,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getMacInfo": {
+      "operationId": "getMacInfo",
       "title": "MAC Address Lookup",
       "description": "Lookup MAC address vendor information. Identify network device manufacturers.",
       "method": "GET",
@@ -757,6 +889,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getMacLookupInfo": {
+      "operationId": "getMacLookupInfo",
       "title": "MAC Lookup Reference",
       "description": "Returns parameter help and an example response for the MAC address lookup endpoint.",
       "method": "GET",
@@ -766,6 +899,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getRdap": {
+      "operationId": "getRdap",
       "title": "RDAP Lookup",
       "description": "Get raw RDAP response for a domain, IP address, or autonomous system number.",
       "method": "GET",
@@ -779,6 +913,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getWhois": {
+      "operationId": "getWhois",
       "title": "WHOIS Lookup",
       "description": "Get structured WHOIS/RDAP registration data for a domain.",
       "method": "GET",
@@ -790,6 +925,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getWhoisHistory": {
+      "operationId": "getWhoisHistory",
       "title": "WHOIS History",
       "description": "Query the DomScan WHOIS observation log. A qualifying fresh, successful RDAP-backed GET /v1/whois or /v2/whois lookup can record at most one normalized snapshot per domain per UTC day. Cached responses, bulk lookups, history reads, and traditional WHOIS-only fallbacks do not add snapshots. This is not a global historical WHOIS archive and does not provide registrant identity or contact history.",
       "method": "GET",
@@ -800,10 +936,23 @@ export const endpointManifest = {
         "limit"
       ],
       "hasBody": false
+    },
+    "getWhoisV2": {
+      "operationId": "getWhoisV2",
+      "title": "Enhanced WHOIS Lookup",
+      "description": "Fetch RDAP and traditional WHOIS in parallel, then merge available abuse contacts, registrar WHOIS details, glue addresses, and raw WHOIS evidence into the normalized response.",
+      "method": "GET",
+      "path": "/v2/whois",
+      "pathParams": [],
+      "queryParams": [
+        "domain"
+      ],
+      "hasBody": false
     }
   },
   "pricing": {
     "bulkPricing": {
+      "operationId": "bulkPricing",
       "title": "Bulk Pricing",
       "description": "Read daily standard-price rows for multiple TLDs. Each unique TLD and selected registrar pair costs one credit.",
       "method": "POST",
@@ -813,6 +962,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "comparePrices": {
+      "operationId": "comparePrices",
       "title": "Compare Registrar Prices",
       "description": "Compare daily standard-TLD rows and separate credential-backed exact-domain quotes without inferring missing operation prices.",
       "method": "GET",
@@ -826,6 +976,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getPrices": {
+      "operationId": "getPrices",
       "title": "Domain Pricing",
       "description": "Read daily standard-TLD price snapshots from verified official registrar sources. One credit is charged per unique TLD and selected registrar pair.",
       "method": "GET",
@@ -839,6 +990,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getRegistrars": {
+      "operationId": "getRegistrars",
       "title": "List Registrars",
       "description": "List registrar metadata and identify which registrars currently have integrated DomScan pricing sources.",
       "method": "GET",
@@ -848,6 +1000,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getTldPricing": {
+      "operationId": "getTldPricing",
       "title": "TLD Pricing",
       "description": "Read daily standard-price rows for one TLD, with registrar filters, provenance, freshness, and pair-based billing.",
       "method": "GET",
@@ -864,6 +1017,7 @@ export const endpointManifest = {
   },
   "recipes": {
     "recipeBrandLaunch": {
+      "operationId": "recipeBrandLaunch",
       "title": "Brand Launch Readiness",
       "description": "Pre-launch checklist for brand domains including DNS, SSL, email auth, and social availability. Saves 4 credits.",
       "method": "GET",
@@ -877,6 +1031,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "recipeCompetitorIntel": {
+      "operationId": "recipeCompetitorIntel",
       "title": "Competitor Intelligence",
       "description": "Competitor domain infrastructure analysis including tech stack and DNS configuration. Saves 5 credits.",
       "method": "GET",
@@ -885,11 +1040,13 @@ export const endpointManifest = {
       "queryParams": [
         "domain",
         "discover_subdomains",
+        "analyze_infrastructure",
         "analyze_email"
       ],
       "hasBody": false
     },
     "recipeDefensiveRegistration": {
+      "operationId": "recipeDefensiveRegistration",
       "title": "Defensive Registration",
       "description": "Brand protection through strategic domain acquisition recommendations. Saves 8 credits.",
       "method": "GET",
@@ -905,6 +1062,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "recipeDnsMigration": {
+      "operationId": "recipeDnsMigration",
       "title": "DNS Migration Check",
       "description": "Pre-migration checklist and current DNS configuration snapshot. Saves 5 credits.",
       "method": "GET",
@@ -918,6 +1076,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "recipeDomainFinder": {
+      "operationId": "recipeDomainFinder",
       "title": "Domain Finder",
       "description": "AI-powered domain discovery with filtering and availability checking. Saves 13 credits.",
       "method": "GET",
@@ -934,6 +1093,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "recipeDueDiligence": {
+      "operationId": "recipeDueDiligence",
       "title": "Domain Due Diligence",
       "description": "Complete domain acquisition analysis with registration, valuation, health, and brand protection insights. Saves 6 credits vs individual calls.",
       "method": "GET",
@@ -946,6 +1106,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "recipeEmailDeliverability": {
+      "operationId": "recipeEmailDeliverability",
       "title": "Email Deliverability Audit",
       "description": "Complete email authentication and deliverability analysis (SPF, DKIM, DMARC). Saves 5 credits.",
       "method": "GET",
@@ -959,6 +1120,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "recipeInfrastructureDiscovery": {
+      "operationId": "recipeInfrastructureDiscovery",
       "title": "Infrastructure Discovery",
       "description": "Complete infrastructure mapping and attack surface analysis. Saves 10 credits.",
       "method": "GET",
@@ -972,6 +1134,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "recipePhishingInvestigation": {
+      "operationId": "recipePhishingInvestigation",
       "title": "Phishing Investigation",
       "description": "Evidence collection and analysis for suspected phishing domains. Saves 10 credits.",
       "method": "GET",
@@ -985,6 +1148,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "recipePortfolioAudit": {
+      "operationId": "recipePortfolioAudit",
       "title": "Portfolio Audit",
       "description": "Audit entire domain portfolio for health, valuation, and optimization opportunities. Saves up to 275 credits.",
       "method": "GET",
@@ -994,11 +1158,13 @@ export const endpointManifest = {
         "domains",
         "include_valuation",
         "include_health",
+        "include_pricing",
         "alert_expiring_days"
       ],
       "hasBody": false
     },
     "recipePortfolioAuditPost": {
+      "operationId": "recipePortfolioAuditPost",
       "title": "Portfolio Audit (POST)",
       "description": "Audit domain portfolio via POST for larger domain lists.",
       "method": "POST",
@@ -1008,6 +1174,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "recipeThreatAssessment": {
+      "operationId": "recipeThreatAssessment",
       "title": "Threat Assessment",
       "description": "Comprehensive typosquatting and brand threat analysis for security teams. Saves 22 credits.",
       "method": "GET",
@@ -1015,6 +1182,7 @@ export const endpointManifest = {
       "pathParams": [],
       "queryParams": [
         "domain",
+        "analyze_threats",
         "max_threats",
         "include_evidence"
       ],
@@ -1023,6 +1191,7 @@ export const endpointManifest = {
   },
   "security": {
     "bulkEmailCheck": {
+      "operationId": "bulkEmailCheck",
       "title": "Bulk Email Check",
       "description": "Check multiple email domains against blacklists at once.",
       "method": "POST",
@@ -1032,6 +1201,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "bulkGetCertificates": {
+      "operationId": "bulkGetCertificates",
       "title": "Bulk SSL Certificate Search",
       "description": "Search Certificate Transparency data for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.",
       "method": "POST",
@@ -1041,6 +1211,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "bulkGetEmailAuth": {
+      "operationId": "bulkGetEmailAuth",
       "title": "Bulk Email Authentication",
       "description": "Check SPF, DKIM, DMARC, MTA-STS, TLS-RPT, and recursive SPF behavior for up to 10 domains. Results preserve input order and include per-domain errors.",
       "method": "POST",
@@ -1050,6 +1221,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "bulkGetSubdomains": {
+      "operationId": "bulkGetSubdomains",
       "title": "Bulk Subdomain Discovery",
       "description": "Run the passive subdomain evidence pipeline for up to 10 domains with bounded concurrency. Results preserve input order and include per-domain errors.",
       "method": "POST",
@@ -1059,6 +1231,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "checkEmailBlacklist": {
+      "operationId": "checkEmailBlacklist",
       "title": "Email Blacklist Check",
       "description": "Check if an email domain is on disposable/temporary email blacklists.",
       "method": "GET",
@@ -1071,6 +1244,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getCertificates": {
+      "operationId": "getCertificates",
       "title": "SSL Certificates",
       "description": "Query Certificate Transparency logs. Find all SSL certificates issued for a domain.",
       "method": "GET",
@@ -1086,6 +1260,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getDomainReputation": {
+      "operationId": "getDomainReputation",
       "title": "Domain Reputation",
       "description": "Check domain reputation across DNS, TLS, blacklist, parking, web presence, and email signals with score confidence metadata.",
       "method": "GET",
@@ -1097,6 +1272,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getEmailAuth": {
+      "operationId": "getEmailAuth",
       "title": "Email Authentication",
       "description": "Check DMARC, SPF, DKIM, MTA-STS, TLS-RPT, and recursive SPF behavior for email security auditing.",
       "method": "GET",
@@ -1109,8 +1285,9 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getEmailCompliance": {
+      "operationId": "getEmailCompliance",
       "title": "Email Compliance",
-      "description": "Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and proxy-backed mail security checks.",
+      "description": "Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and mail security checks.",
       "method": "GET",
       "path": "/v1/email/compliance",
       "pathParams": [],
@@ -1122,6 +1299,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getSslAudit": {
+      "operationId": "getSslAudit",
       "title": "SSL Audit",
       "description": "Run a comprehensive live SSL/TLS audit for a domain, aggregating certificate, chain, revocation, HSTS, HTTP version, and TLS posture details.",
       "method": "GET",
@@ -1133,6 +1311,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getSslChain": {
+      "operationId": "getSslChain",
       "title": "SSL Chain",
       "description": "Analyze the certificate chain including issuer, validity, and trust chain verification.",
       "method": "GET",
@@ -1144,6 +1323,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getSslDeepScan": {
+      "operationId": "getSslDeepScan",
       "title": "SSL Deep Scan",
       "description": "Run a premium cached deep SSL/TLS scan for a domain. Returns a fresh cached result immediately when available, or starts a long-running scan and returns a signed polling token.",
       "method": "GET",
@@ -1157,6 +1337,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getSslExpiring": {
+      "operationId": "getSslExpiring",
       "title": "SSL Expiry Check",
       "description": "Check if an SSL certificate is expiring soon with configurable alert threshold.",
       "method": "GET",
@@ -1164,11 +1345,13 @@ export const endpointManifest = {
       "pathParams": [],
       "queryParams": [
         "domain",
+        "days",
         "threshold_days"
       ],
       "hasBody": false
     },
     "getSslGrade": {
+      "operationId": "getSslGrade",
       "title": "SSL Grade",
       "description": "Analyze SSL/TLS configuration and get a letter grade (A+ to F) with detailed scoring plus HSTS preload audit metadata.",
       "method": "GET",
@@ -1180,8 +1363,9 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getSubdomains": {
+      "operationId": "getSubdomains",
       "title": "Subdomain Finder",
-      "description": "Return best-effort public hostname evidence from a sequential passive pipeline. Discovery tries crt.sh first, then can fall back to HackerTarget, ThreatMiner, the Wayback Machine, and CertSpotter. Results include their evidence source. DomScan does not brute-force names or crawl the target site, so coverage is incomplete.",
+      "description": "Return best-effort hostname evidence from public certificate and passive discovery sources. Coverage is incomplete, and results include provenance with optional DNS verification.",
       "method": "GET",
       "path": "/v1/subdomains",
       "pathParams": [],
@@ -1196,6 +1380,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getTyposquatting": {
+      "operationId": "getTyposquatting",
       "title": "Typosquatting Detection",
       "description": "Detect typosquatting threats with analysis of common typos, homoglyphs, and brand impersonation risks.",
       "method": "GET",
@@ -1210,8 +1395,9 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getVulnerabilities": {
+      "operationId": "getVulnerabilities",
       "title": "Vulnerability Intelligence",
-      "description": "Find exposed software versions and deterministic web security misconfigurations using verified technology evidence, exact OSV package matching, CISA Known Exploited Vulnerabilities, FIRST EPSS, and isolated Edge Relay rendering. Results separate affected versions from configuration findings and preserve unknown coverage.",
+      "description": "Correlate exposed software versions with authoritative public advisories and exploitation-priority data, and report deterministic web security misconfigurations separately. Results preserve evidence and unknown coverage.",
       "method": "GET",
       "path": "/v1/vulnerabilities",
       "pathParams": [],
@@ -1223,8 +1409,9 @@ export const endpointManifest = {
       "hasBody": false
     },
     "validatePhoneNumber": {
+      "operationId": "validatePhoneNumber",
       "title": "Phone Number Validation",
-      "description": "Validate, normalize, and enrich international phone numbers with country-specific coverage levels, offline numbering-plan, location, time-zone, original prefix-carrier, portability-support, dialing, short-number, service, and official allocation metadata. US NANPA and Canadian CNA/CNAC snapshots add NPA-NXX central office code status and original code-holder evidence. DomScan uses its own Edge Relay and free local datasets without paid or per-number third-party lookups. Results never claim current carrier, reachability, subscriber identity, or individual-number assignment.",
+      "description": "Validate, normalize, and enrich international phone numbers with maintained offline numbering-plan and public allocation data. Results include coverage, provenance, freshness, and limitations without paid or per-number third-party lookups, and never claim current carrier, reachability, subscriber identity, or individual-number assignment.",
       "method": "POST",
       "path": "/v1/phone/validate",
       "pathParams": [],
@@ -1232,8 +1419,9 @@ export const endpointManifest = {
       "hasBody": true
     },
     "validatePhoneNumbersBulk": {
+      "operationId": "validatePhoneNumbersBulk",
       "title": "Bulk Phone Number Validation",
-      "description": "Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and uses one DomScan Edge Relay batch with zero paid or per-number third-party lookups.",
+      "description": "Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and makes no paid or per-number third-party lookup.",
       "method": "POST",
       "path": "/v1/phone/validate/bulk",
       "pathParams": [],
@@ -1241,6 +1429,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "verifyEmail": {
+      "operationId": "verifyEmail",
       "title": "Email Verification",
       "description": "Verify email deliverability with syntax validation, MX/null MX lookup, reserved/test-domain detection, provider typo suggestions, MX provider fingerprinting, SPF/DMARC/MTA-STS/TLS-RPT evidence, local-part/domain intelligence, toxic/do-not-mail signals, confidence scoring, and industry-style deliverability status. Mailbox-level SMTP probing is deprecated and is not charged or performed.",
       "method": "GET",
@@ -1253,6 +1442,7 @@ export const endpointManifest = {
       "hasBody": false
     },
     "verifyEmailBulk": {
+      "operationId": "verifyEmailBulk",
       "title": "Bulk Email Verification",
       "description": "Verify multiple email addresses at once. Max 100 emails per request.",
       "method": "POST",
@@ -1264,6 +1454,7 @@ export const endpointManifest = {
   },
   "social": {
     "bulkCheckSocialHandles": {
+      "operationId": "bulkCheckSocialHandles",
       "title": "Bulk Social Handle Check",
       "description": "Check up to 10 social handles or resource identifiers in one request at the normal 2-credit rate per valid item, with no bulk discount. Invalid items return per-item errors and are not billed.",
       "method": "POST",
@@ -1273,6 +1464,7 @@ export const endpointManifest = {
       "hasBody": true
     },
     "checkSocialHandles": {
+      "operationId": "checkSocialHandles",
       "title": "Social Handle Checker",
       "description": "Check username availability across social, developer, creator, and community platforms. Optionally resolve repositories, subreddits, Discord invites, Substack profiles, and federated accounts.",
       "method": "GET",
@@ -1286,10 +1478,23 @@ export const endpointManifest = {
       "hasBody": false
     },
     "getSocialInfo": {
+      "operationId": "getSocialInfo",
       "title": "Social Handle Reference",
       "description": "Returns supported username platforms, resource types, parameters, and examples for the social intelligence endpoint.",
       "method": "GET",
       "path": "/v1/social/info",
+      "pathParams": [],
+      "queryParams": [],
+      "hasBody": false
+    }
+  },
+  "user": {
+    "getCreditBalance": {
+      "operationId": "getCreditBalance",
+      "title": "Get Credit Balance",
+      "description": "Get the active customer account credit balance without exposing transaction history.",
+      "method": "GET",
+      "path": "/v1/credits",
       "pathParams": [],
       "queryParams": [],
       "hasBody": false

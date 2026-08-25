@@ -54,6 +54,7 @@ public sealed class DomScanClient : IDisposable
     public RecipesService Recipes { get; }
     public SecurityService Security { get; }
     public SocialService Social { get; }
+    public UserService User { get; }
 
     public DomScanClient(
         string? apiKey = null,
@@ -61,7 +62,7 @@ public sealed class DomScanClient : IDisposable
         TimeSpan? timeout = null,
         IDictionary<string, string>? headers = null,
         HttpClient? httpClient = null,
-        string userAgent = "domscan-csharp/0.2.0"
+        string userAgent = "domscan-csharp/0.3.0"
     )
     {
         _apiKey = string.IsNullOrWhiteSpace(apiKey)
@@ -81,6 +82,7 @@ public sealed class DomScanClient : IDisposable
         Recipes = new RecipesService(this);
         Security = new SecurityService(this);
         Social = new SocialService(this);
+        User = new UserService(this);
     }
 
     internal async Task<JsonNode?> RequestAsync(
@@ -228,6 +230,20 @@ public sealed class AvailabilityService
         ), parameters, cancellationToken);
 
         /// <summary>
+        /// Create a resumable asynchronous search over a curated English single-word corpus sourced from iannuttall/unclaimed under the MIT License. Check each selected word across 1 to 5 supported TLDs, with a hard limit of 100 word-TLD checks per job. Available, registered, and unknown remain distinct outcomes. Jobs use the existing batch status, results, and cancellation lifecycle.
+        /// </summary>
+        public Task<JsonNode?> CreateDomainDiscoveryJobAsync(
+            IDictionary<string, object?>? parameters = null,
+            CancellationToken cancellationToken = default
+        ) => _client.RequestAsync(new EndpointDefinition(
+            "POST",
+            "/v1/domain-discovery/jobs",
+            new string[] {  },
+            new string[] {  },
+            true
+        ), parameters, cancellationToken);
+
+        /// <summary>
         /// Get information about which TLDs are supported and their RDAP server status.
         /// </summary>
         public Task<JsonNode?> GetCoverageAsync(
@@ -237,7 +253,7 @@ public sealed class AvailabilityService
             "GET",
             "/v1/coverage",
             new string[] {  },
-            new string[] {  },
+            new string[] { "live" },
             false
         ), parameters, cancellationToken);
 }
@@ -364,7 +380,7 @@ public sealed class DnsService
         ), parameters, cancellationToken);
 
         /// <summary>
-        /// Compare DNS answers from DomScan's configured Cloudflare and Google public recursive DoH providers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
+        /// Compare answers from DomScan's configured public recursive resolvers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
         /// </summary>
         public Task<JsonNode?> GetDnsPropagationAsync(
             IDictionary<string, object?>? parameters = null,
@@ -514,7 +530,7 @@ public sealed class DomainService
         ), parameters, cancellationToken);
 
         /// <summary>
-        /// Comprehensive health checks with DNS, SSL, email, proxy-enriched TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
+        /// Comprehensive health checks with DNS, SSL, email, extended TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
         /// </summary>
         public Task<JsonNode?> GetDomainHealthAsync(
             IDictionary<string, object?>? parameters = null,
@@ -663,7 +679,7 @@ public sealed class DomainService
             "GET",
             "/v1/tlds",
             new string[] {  },
-            new string[] { "type" },
+            new string[] { "type", "trust_tier", "use_case" },
             false
         ), parameters, cancellationToken);
 
@@ -748,7 +764,7 @@ public sealed class IntelligenceService
         ), parameters, cancellationToken);
 
         /// <summary>
-        /// Cancel unstarted technology scan work and settle item-level refunds. An already running browser scan may finish, but its result is discarded.
+        /// Cancel unstarted technology scan work and settle item-level refunds. Work already in progress may finish and remains available in the job results.
         /// </summary>
         public Task<JsonNode?> CancelTechScanJobAsync(
             IDictionary<string, object?>? parameters = null,
@@ -790,6 +806,20 @@ public sealed class IntelligenceService
         ), parameters, cancellationToken);
 
         /// <summary>
+        /// Queue 1 to 100 public page scrapes for asynchronous processing. Batch jobs are available to paid accounts, require an idempotency key, allow up to three active jobs and 300 queued items per account, and bill each accepted URL at the selected mode price. CAPTCHA solving and premium proxy selection are not offered.
+        /// </summary>
+        public Task<JsonNode?> CreateScrapeJobAsync(
+            IDictionary<string, object?>? parameters = null,
+            CancellationToken cancellationToken = default
+        ) => _client.RequestAsync(new EndpointDefinition(
+            "POST",
+            "/v1/scrape/jobs",
+            new string[] {  },
+            new string[] {  },
+            true
+        ), parameters, cancellationToken);
+
+        /// <summary>
         /// Create a durable asynchronous technology scan job for up to 100 public targets. Supports fast, JavaScript-rendered, and bounded same-origin deep modes with item-level billing and refunds.
         /// </summary>
         public Task<JsonNode?> CreateTechScanJobAsync(
@@ -818,7 +848,7 @@ public sealed class IntelligenceService
         ), parameters, cancellationToken);
 
         /// <summary>
-        /// Extract company information from a domain. Get name, industry, and contact details.
+        /// Extract source-backed organization names, descriptions, declared social links, MX-inferred email providers, confidence, and provenance from public website and DNS metadata. Enrichment-only fields can be null.
         /// </summary>
         public Task<JsonNode?> GetCompanyAsync(
             IDictionary<string, object?>? parameters = null,
@@ -888,6 +918,34 @@ public sealed class IntelligenceService
         ), parameters, cancellationToken);
 
         /// <summary>
+        /// Get owner-scoped progress, item counts, billing settlement, and expiration details.
+        /// </summary>
+        public Task<JsonNode?> GetScrapeJobAsync(
+            IDictionary<string, object?>? parameters = null,
+            CancellationToken cancellationToken = default
+        ) => _client.RequestAsync(new EndpointDefinition(
+            "GET",
+            "/v1/scrape/jobs/:job_id",
+            new string[] { "job_id" },
+            new string[] {  },
+            false
+        ), parameters, cancellationToken);
+
+        /// <summary>
+        /// Get ordered, paginated results for an owner-scoped scrape job. Full page results expire after 24 hours.
+        /// </summary>
+        public Task<JsonNode?> GetScrapeJobResultsAsync(
+            IDictionary<string, object?>? parameters = null,
+            CancellationToken cancellationToken = default
+        ) => _client.RequestAsync(new EndpointDefinition(
+            "GET",
+            "/v1/scrape/jobs/:job_id/results",
+            new string[] { "job_id" },
+            new string[] { "limit", "offset" },
+            false
+        ), parameters, cancellationToken);
+
+        /// <summary>
         /// Get owner-scoped progress, item counts, billing settlement, and expiration details for a technology scan job.
         /// </summary>
         public Task<JsonNode?> GetTechScanJobAsync(
@@ -939,7 +997,7 @@ public sealed class IntelligenceService
             "GET",
             "/v1/url-intelligence",
             new string[] {  },
-            new string[] { "url" },
+            new string[] { "url", "skip_cache" },
             false
         ), parameters, cancellationToken);
 
@@ -953,7 +1011,7 @@ public sealed class IntelligenceService
             "GET",
             "/v1/identity-assets",
             new string[] {  },
-            new string[] { "domain" },
+            new string[] { "domain", "skip_cache" },
             false
         ), parameters, cancellationToken);
 
@@ -972,7 +1030,7 @@ public sealed class IntelligenceService
         ), parameters, cancellationToken);
 
         /// <summary>
-        /// Run up to 10 ordered fast technology scans in one request. Each valid target is billed independently, and failed upstream scans are refunded independently.
+        /// Run up to 10 ordered fast technology scans in one request. Each attempted target is billed independently, including target-site failures. Verified DomScan service failures are refunded independently.
         /// </summary>
         public Task<JsonNode?> PostTechStackBulkAsync(
             IDictionary<string, object?>? parameters = null,
@@ -995,8 +1053,22 @@ public sealed class IntelligenceService
             "GET",
             "/v1/identity-resolution",
             new string[] {  },
-            new string[] { "domain" },
+            new string[] { "domain", "skip_cache" },
             false
+        ), parameters, cancellationToken);
+
+        /// <summary>
+        /// Retrieve one public web page with bounded redirects and response size. Standard requests use one attempt, resilient requests may use one eligible retry, and rendered modes execute page JavaScript in an isolated browser. Free accounts can use standard mode with lower request, concurrency, daily, monthly, and response-size limits. CAPTCHA solving and premium proxy selection are not offered. Target-site failures remain billable after processing starts; verified platform failures are refunded.
+        /// </summary>
+        public Task<JsonNode?> ScrapePageAsync(
+            IDictionary<string, object?>? parameters = null,
+            CancellationToken cancellationToken = default
+        ) => _client.RequestAsync(new EndpointDefinition(
+            "POST",
+            "/v1/scrape",
+            new string[] {  },
+            new string[] {  },
+            true
         ), parameters, cancellationToken);
 }
 
@@ -1024,7 +1096,7 @@ public sealed class MetaService
         ), parameters, cancellationToken);
 
         /// <summary>
-        /// Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and failed items are refunded independently.
+        /// Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and refund rules. Target-site outcomes remain billed, while verified service failures are refunded independently.
         /// </summary>
         public Task<JsonNode?> CreateApiBatchAsync(
             IDictionary<string, object?>? parameters = null,
@@ -1256,6 +1328,20 @@ public sealed class OsintService
             new string[] { "domain", "limit" },
             false
         ), parameters, cancellationToken);
+
+        /// <summary>
+        /// Fetch RDAP and traditional WHOIS in parallel, then merge available abuse contacts, registrar WHOIS details, glue addresses, and raw WHOIS evidence into the normalized response.
+        /// </summary>
+        public Task<JsonNode?> GetWhoisV2Async(
+            IDictionary<string, object?>? parameters = null,
+            CancellationToken cancellationToken = default
+        ) => _client.RequestAsync(new EndpointDefinition(
+            "GET",
+            "/v2/whois",
+            new string[] {  },
+            new string[] { "domain" },
+            false
+        ), parameters, cancellationToken);
 }
 
 public sealed class PricingService
@@ -1371,7 +1457,7 @@ public sealed class RecipesService
             "GET",
             "/v1/recipes/competitor-intel",
             new string[] {  },
-            new string[] { "domain", "discover_subdomains", "analyze_email" },
+            new string[] { "domain", "discover_subdomains", "analyze_infrastructure", "analyze_email" },
             false
         ), parameters, cancellationToken);
 
@@ -1483,7 +1569,7 @@ public sealed class RecipesService
             "GET",
             "/v1/recipes/portfolio-audit",
             new string[] {  },
-            new string[] { "domains", "include_valuation", "include_health", "alert_expiring_days" },
+            new string[] { "domains", "include_valuation", "include_health", "include_pricing", "alert_expiring_days" },
             false
         ), parameters, cancellationToken);
 
@@ -1511,7 +1597,7 @@ public sealed class RecipesService
             "GET",
             "/v1/recipes/threat-assessment",
             new string[] {  },
-            new string[] { "domain", "max_threats", "include_evidence" },
+            new string[] { "domain", "analyze_threats", "max_threats", "include_evidence" },
             false
         ), parameters, cancellationToken);
 }
@@ -1638,7 +1724,7 @@ public sealed class SecurityService
         ), parameters, cancellationToken);
 
         /// <summary>
-        /// Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and proxy-backed mail security checks.
+        /// Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and mail security checks.
         /// </summary>
         public Task<JsonNode?> GetEmailComplianceAsync(
             IDictionary<string, object?>? parameters = null,
@@ -1703,7 +1789,7 @@ public sealed class SecurityService
             "GET",
             "/v1/ssl/expiring",
             new string[] {  },
-            new string[] { "domain", "threshold_days" },
+            new string[] { "domain", "days", "threshold_days" },
             false
         ), parameters, cancellationToken);
 
@@ -1722,7 +1808,7 @@ public sealed class SecurityService
         ), parameters, cancellationToken);
 
         /// <summary>
-        /// Return best-effort public hostname evidence from a sequential passive pipeline. Discovery tries crt.sh first, then can fall back to HackerTarget, ThreatMiner, the Wayback Machine, and CertSpotter. Results include their evidence source. DomScan does not brute-force names or crawl the target site, so coverage is incomplete.
+        /// Return best-effort hostname evidence from public certificate and passive discovery sources. Coverage is incomplete, and results include provenance with optional DNS verification.
         /// </summary>
         public Task<JsonNode?> GetSubdomainsAsync(
             IDictionary<string, object?>? parameters = null,
@@ -1750,7 +1836,7 @@ public sealed class SecurityService
         ), parameters, cancellationToken);
 
         /// <summary>
-        /// Find exposed software versions and deterministic web security misconfigurations using verified technology evidence, exact OSV package matching, CISA Known Exploited Vulnerabilities, FIRST EPSS, and isolated Edge Relay rendering. Results separate affected versions from configuration findings and preserve unknown coverage.
+        /// Correlate exposed software versions with authoritative public advisories and exploitation-priority data, and report deterministic web security misconfigurations separately. Results preserve evidence and unknown coverage.
         /// </summary>
         public Task<JsonNode?> GetVulnerabilitiesAsync(
             IDictionary<string, object?>? parameters = null,
@@ -1764,7 +1850,7 @@ public sealed class SecurityService
         ), parameters, cancellationToken);
 
         /// <summary>
-        /// Validate, normalize, and enrich international phone numbers with country-specific coverage levels, offline numbering-plan, location, time-zone, original prefix-carrier, portability-support, dialing, short-number, service, and official allocation metadata. US NANPA and Canadian CNA/CNAC snapshots add NPA-NXX central office code status and original code-holder evidence. DomScan uses its own Edge Relay and free local datasets without paid or per-number third-party lookups. Results never claim current carrier, reachability, subscriber identity, or individual-number assignment.
+        /// Validate, normalize, and enrich international phone numbers with maintained offline numbering-plan and public allocation data. Results include coverage, provenance, freshness, and limitations without paid or per-number third-party lookups, and never claim current carrier, reachability, subscriber identity, or individual-number assignment.
         /// </summary>
         public Task<JsonNode?> ValidatePhoneNumberAsync(
             IDictionary<string, object?>? parameters = null,
@@ -1778,7 +1864,7 @@ public sealed class SecurityService
         ), parameters, cancellationToken);
 
         /// <summary>
-        /// Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and uses one DomScan Edge Relay batch with zero paid or per-number third-party lookups.
+        /// Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and makes no paid or per-number third-party lookup.
         /// </summary>
         public Task<JsonNode?> ValidatePhoneNumbersBulkAsync(
             IDictionary<string, object?>? parameters = null,
@@ -1866,6 +1952,30 @@ public sealed class SocialService
         ) => _client.RequestAsync(new EndpointDefinition(
             "GET",
             "/v1/social/info",
+            new string[] {  },
+            new string[] {  },
+            false
+        ), parameters, cancellationToken);
+}
+
+public sealed class UserService
+{
+    private readonly DomScanClient _client;
+
+    internal UserService(DomScanClient client)
+    {
+        _client = client;
+    }
+
+        /// <summary>
+        /// Get the active customer account credit balance without exposing transaction history.
+        /// </summary>
+        public Task<JsonNode?> GetCreditBalanceAsync(
+            IDictionary<string, object?>? parameters = null,
+            CancellationToken cancellationToken = default
+        ) => _client.RequestAsync(new EndpointDefinition(
+            "GET",
+            "/v1/credits",
             new string[] {  },
             new string[] {  },
             false

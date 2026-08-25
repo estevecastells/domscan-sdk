@@ -2,33 +2,35 @@
 
 Official Python client for the [DomScan API](https://domscan.net/docs).
 
-The SDK is generated from DomScan's endpoint registry, so the public client surface stays aligned with the live API. Version 0.2.0 exposes 113 public non-session endpoints across availability, DNS, WHOIS, security, pricing, recipes, and intelligence workflows.
+The SDK is generated from DomScan's endpoint registry and OpenAPI contract, so the public client surface stays aligned with the current availability, DNS, WHOIS, security, pricing, recipes, and intelligence operations.
 
 ## Installation
 
+Install the latest release directly from GitHub:
+
 ```bash
-pip install https://github.com/estevecastells/domscan-sdk/releases/latest/download/domscan-sdk-python.tar.gz
+python -m pip install https://github.com/estevecastells/domscan-sdk/releases/latest/download/domscan-sdk-python.tar.gz
 ```
 
-The GitHub release archive is the supported installation path for this version. The PyPI package name is reserved but is not yet published to the public registry.
+## Typed quickstart
 
-## Quick Start
+The package includes generated type hints for supported parameters and response shapes.
 
 ```python
 from domscan import DomScan
 
-client = DomScan()
+domscan = DomScan()
 
-availability = client.availability.check_domain_availability(
+result = domscan.availability.check_domain_availability(
     name="launch",
-    tlds=["com", "io", "ai"],
+    tlds="com,io,ai",
     prefer_cache=True,
 )
 
-print(availability)
+print(result["results"])
 ```
 
-The client reads `DOMSCAN_API_KEY` automatically if you do not pass `api_key`.
+The client reads `DOMSCAN_API_KEY` automatically. You can also pass `api_key` to the constructor.
 
 ## Configuration
 
@@ -59,28 +61,85 @@ client = DomScan(
 whois = client.osint.get_whois(domain="openai.com")
 dns = client.dns.get_dns_records(domain="openai.com", type="MX")
 prices = client.pricing.get_tld_pricing(tld="ai")
-popularity = client.domain.get_domain_popularity(
-    domain="openai.com",
-    include_history=True,
+```
+
+```python
+health = client.domain.get_domain_health(domain="cloudflare.com")
+print(health["enriched"]["tls"]["grade"])
+print(health["enriched"]["hsts"]["preload_status"])
+
+dns_security = client.dns.get_dns_security(domain="google.com")
+print(dns_security["mta_sts"]["policy_matches_mx"])
+print(dns_security["resolver_latency"]["avg_ms"])
+
+ip_info = client.osint.get_ip_info(domain="openai.com")
+print(ip_info["security"]["type_classification"])
+print(ip_info["security"]["fcrdns"])
+```
+
+## Full-response metadata
+
+Methods return response data by default. Pass `_with_response=True` when you also need request, credit, rate-limit, or freshness metadata.
+
+```python
+response = domscan.availability.check_domain_availability(
+    name="launch",
+    tlds="com,io,ai",
+    prefer_cache=True,
+    _with_response=True,
+)
+
+print(response.data["results"])
+print(response.request_id)
+print(response.credits_charged)
+print(response.credits_remaining)
+print(response.rate_limit_remaining)
+print(response.freshness)
+```
+
+## Error handling
+
+Use the structured error fields instead of matching error messages.
+
+```python
+from domscan import DomScanAPIError
+
+try:
+    domscan.domain.get_domain_value(domain="example.com")
+except DomScanAPIError as error:
+    print({
+        "type": error.error_type,
+        "code": error.code,
+        "status": error.status,
+        "retryable": error.retryable,
+        "retry_after": error.retry_after,
+        "request_id": error.request_id,
+        "docs_url": error.docs_url,
+    })
+```
+
+## Retries and idempotency
+
+The SDK retries eligible GET requests up to two times by default when a network request fails, times out, or the API marks an error as retryable. It honors `Retry-After` when the API provides it.
+
+Non-GET requests are attempted once unless you supply an idempotency key:
+
+```python
+from uuid import uuid4
+
+domscan = DomScan(max_retries=2)
+
+result = domscan.domain.bulk_domain_value(
+    domains=["example.com", "example.net"],
+    _idempotency_key=str(uuid4()),
+    _max_retries=2,
 )
 ```
 
-## Error Handling
-
-```python
-from domscan import DomScan, DomScanAPIError
-
-client = DomScan()
-
-try:
-    client.domain.get_domain_value(domain="example.com")
-except DomScanAPIError as error:
-    print(error.status, error.code, error.details)
-```
+Set `max_retries=0` globally or `_max_retries=0` per request to disable retries.
 
 ## Resources
 
 - Docs: [https://domscan.net/docs](https://domscan.net/docs)
 - OpenAPI: [https://domscan.net/v1/openapi.json](https://domscan.net/v1/openapi.json)
-- Releases: [https://github.com/estevecastells/domscan-sdk/releases](https://github.com/estevecastells/domscan-sdk/releases)
 - Repo hub: [../README.md](../README.md)

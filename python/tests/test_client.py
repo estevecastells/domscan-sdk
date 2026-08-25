@@ -6,7 +6,7 @@ from domscan._generated import ENDPOINTS
 
 class DomScanClientTests(unittest.TestCase):
   def test_release_version(self):
-    self.assertEqual(__version__, "0.2.0")
+    self.assertEqual(__version__, "0.3.0")
 
   def test_new_operations_are_generated(self):
     client = DomScan(api_key="dsk_test")
@@ -14,7 +14,7 @@ class DomScanClientTests(unittest.TestCase):
     self.assertTrue(callable(client.domain.get_domain_popularity))
     self.assertTrue(callable(client.intelligence.create_tech_scan_job))
     self.assertTrue(callable(client.meta.create_api_batch))
-    self.assertEqual(sum(len(methods) for methods in ENDPOINTS.values()), 113)
+    self.assertEqual(sum(len(methods) for methods in ENDPOINTS.values()), 120)
 
   def test_decodes_problem_json(self):
     payload = DomScan._decode_payload(

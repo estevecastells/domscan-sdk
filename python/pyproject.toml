@@ -4,10 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "domscan-sdk"
-version = "0.2.0"
+version = "0.3.0"
 description = "Official Python SDK for the DomScan Domain Intelligence API"
 readme = "README.md"
 requires-python = ">=3.9"
+dependencies = ["typing-extensions>=4.6"]
 license = "MIT"
 authors = [
   { name = "DomScan", email = "support@domscan.net" }
@@ -20,7 +21,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://domscan.net/docs"
+Homepage = "https://domscan.net"
+Documentation = "https://domscan.net/docs"
 Repository = "https://github.com/estevecastells/domscan-sdk"
 Issues = "https://github.com/estevecastells/domscan-sdk/issues"
 

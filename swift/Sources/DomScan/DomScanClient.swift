@@ -33,13 +33,14 @@ public final class DomScanClient {
     public lazy var recipes: RecipesService = RecipesService(client: self)
     public lazy var security: SecurityService = SecurityService(client: self)
     public lazy var social: SocialService = SocialService(client: self)
+    public lazy var user: UserService = UserService(client: self)
 
     public init(
         apiKey: String? = ProcessInfo.processInfo.environment["DOMSCAN_API_KEY"],
         baseURL: String = "https://domscan.net",
         timeout: TimeInterval = 10,
         headers: [String: String] = [:],
-        userAgent: String = "domscan-swift/0.2.0"
+        userAgent: String = "domscan-swift/0.3.0"
     ) {
         self.apiKey = apiKey
         self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -172,6 +173,20 @@ public final class AvailabilityService {
         )
     }
 
+    /// Create a resumable asynchronous search over a curated English single-word corpus sourced from iannuttall/unclaimed under the MIT License. Check each selected word across 1 to 5 supported TLDs, with a hard limit of 100 word-TLD checks per job. Available, registered, and unknown remain distinct outcomes. Jobs use the existing batch status, results, and cancellation lifecycle.
+    public func createDomainDiscoveryJob(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/domain-discovery/jobs",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
     /// Get information about which TLDs are supported and their RDAP server status.
     public func getCoverage(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
@@ -179,7 +194,7 @@ public final class AvailabilityService {
                 method: "GET",
                 path: "/v1/coverage",
                 pathParams: [],
-                queryParams: [],
+                queryParams: ["live"],
                 hasBody: false
             ),
             params: params
@@ -306,7 +321,7 @@ public final class DnsService {
         )
     }
 
-    /// Compare DNS answers from DomScan's configured Cloudflare and Google public recursive DoH providers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
+    /// Compare answers from DomScan's configured public recursive resolvers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
     public func getDnsPropagation(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -454,7 +469,7 @@ public final class DomainService {
         )
     }
 
-    /// Comprehensive health checks with DNS, SSL, email, proxy-enriched TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
+    /// Comprehensive health checks with DNS, SSL, email, extended TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
     public func getDomainHealth(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -601,7 +616,7 @@ public final class DomainService {
                 method: "GET",
                 path: "/v1/tlds",
                 pathParams: [],
-                queryParams: ["type"],
+                queryParams: ["type", "trust_tier", "use_case"],
                 hasBody: false
             ),
             params: params
@@ -686,7 +701,7 @@ public final class IntelligenceService {
         )
     }
 
-    /// Cancel unstarted technology scan work and settle item-level refunds. An already running browser scan may finish, but its result is discarded.
+    /// Cancel unstarted technology scan work and settle item-level refunds. Work already in progress may finish and remains available in the job results.
     public func cancelTechScanJob(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -728,6 +743,20 @@ public final class IntelligenceService {
         )
     }
 
+    /// Queue 1 to 100 public page scrapes for asynchronous processing. Batch jobs are available to paid accounts, require an idempotency key, allow up to three active jobs and 300 queued items per account, and bill each accepted URL at the selected mode price. CAPTCHA solving and premium proxy selection are not offered.
+    public func createScrapeJob(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/scrape/jobs",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
+            ),
+            params: params
+        )
+    }
+
     /// Create a durable asynchronous technology scan job for up to 100 public targets. Supports fast, JavaScript-rendered, and bounded same-origin deep modes with item-level billing and refunds.
     public func createTechScanJob(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
@@ -756,7 +785,7 @@ public final class IntelligenceService {
         )
     }
 
-    /// Extract company information from a domain. Get name, industry, and contact details.
+    /// Extract source-backed organization names, descriptions, declared social links, MX-inferred email providers, confidence, and provenance from public website and DNS metadata. Enrichment-only fields can be null.
     public func getCompany(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -826,6 +855,34 @@ public final class IntelligenceService {
         )
     }
 
+    /// Get owner-scoped progress, item counts, billing settlement, and expiration details.
+    public func getScrapeJob(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/scrape/jobs/:job_id",
+                pathParams: ["job_id"],
+                queryParams: [],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Get ordered, paginated results for an owner-scoped scrape job. Full page results expire after 24 hours.
+    public func getScrapeJobResults(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/scrape/jobs/:job_id/results",
+                pathParams: ["job_id"],
+                queryParams: ["limit", "offset"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+
     /// Get owner-scoped progress, item counts, billing settlement, and expiration details for a technology scan job.
     public func getTechScanJob(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
@@ -875,7 +932,7 @@ public final class IntelligenceService {
                 method: "GET",
                 path: "/v1/url-intelligence",
                 pathParams: [],
-                queryParams: ["url"],
+                queryParams: ["url", "skip_cache"],
                 hasBody: false
             ),
             params: params
@@ -889,7 +946,7 @@ public final class IntelligenceService {
                 method: "GET",
                 path: "/v1/identity-assets",
                 pathParams: [],
-                queryParams: ["domain"],
+                queryParams: ["domain", "skip_cache"],
                 hasBody: false
             ),
             params: params
@@ -910,7 +967,7 @@ public final class IntelligenceService {
         )
     }
 
-    /// Run up to 10 ordered fast technology scans in one request. Each valid target is billed independently, and failed upstream scans are refunded independently.
+    /// Run up to 10 ordered fast technology scans in one request. Each attempted target is billed independently, including target-site failures. Verified DomScan service failures are refunded independently.
     public func postTechStackBulk(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -931,8 +988,22 @@ public final class IntelligenceService {
                 method: "GET",
                 path: "/v1/identity-resolution",
                 pathParams: [],
-                queryParams: ["domain"],
+                queryParams: ["domain", "skip_cache"],
                 hasBody: false
+            ),
+            params: params
+        )
+    }
+
+    /// Retrieve one public web page with bounded redirects and response size. Standard requests use one attempt, resilient requests may use one eligible retry, and rendered modes execute page JavaScript in an isolated browser. Free accounts can use standard mode with lower request, concurrency, daily, monthly, and response-size limits. CAPTCHA solving and premium proxy selection are not offered. Target-site failures remain billable after processing starts; verified platform failures are refunded.
+    public func scrapePage(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "POST",
+                path: "/v1/scrape",
+                pathParams: [],
+                queryParams: [],
+                hasBody: true
             ),
             params: params
         )
@@ -960,7 +1031,7 @@ public final class MetaService {
         )
     }
 
-    /// Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and failed items are refunded independently.
+    /// Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and refund rules. Target-site outcomes remain billed, while verified service failures are refunded independently.
     public func createApiBatch(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -1191,6 +1262,20 @@ public final class OsintService {
             params: params
         )
     }
+
+    /// Fetch RDAP and traditional WHOIS in parallel, then merge available abuse contacts, registrar WHOIS details, glue addresses, and raw WHOIS evidence into the normalized response.
+    public func getWhoisV2(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v2/whois",
+                pathParams: [],
+                queryParams: ["domain"],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
 }
 
 public final class PricingService {
@@ -1299,7 +1384,7 @@ public final class RecipesService {
                 method: "GET",
                 path: "/v1/recipes/competitor-intel",
                 pathParams: [],
-                queryParams: ["domain", "discover_subdomains", "analyze_email"],
+                queryParams: ["domain", "discover_subdomains", "analyze_infrastructure", "analyze_email"],
                 hasBody: false
             ),
             params: params
@@ -1411,7 +1496,7 @@ public final class RecipesService {
                 method: "GET",
                 path: "/v1/recipes/portfolio-audit",
                 pathParams: [],
-                queryParams: ["domains", "include_valuation", "include_health", "alert_expiring_days"],
+                queryParams: ["domains", "include_valuation", "include_health", "include_pricing", "alert_expiring_days"],
                 hasBody: false
             ),
             params: params
@@ -1439,7 +1524,7 @@ public final class RecipesService {
                 method: "GET",
                 path: "/v1/recipes/threat-assessment",
                 pathParams: [],
-                queryParams: ["domain", "max_threats", "include_evidence"],
+                queryParams: ["domain", "analyze_threats", "max_threats", "include_evidence"],
                 hasBody: false
             ),
             params: params
@@ -1566,7 +1651,7 @@ public final class SecurityService {
         )
     }
 
-    /// Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and proxy-backed mail security checks.
+    /// Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and mail security checks.
     public func getEmailCompliance(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -1629,7 +1714,7 @@ public final class SecurityService {
                 method: "GET",
                 path: "/v1/ssl/expiring",
                 pathParams: [],
-                queryParams: ["domain", "threshold_days"],
+                queryParams: ["domain", "days", "threshold_days"],
                 hasBody: false
             ),
             params: params
@@ -1650,7 +1735,7 @@ public final class SecurityService {
         )
     }
 
-    /// Return best-effort public hostname evidence from a sequential passive pipeline. Discovery tries crt.sh first, then can fall back to HackerTarget, ThreatMiner, the Wayback Machine, and CertSpotter. Results include their evidence source. DomScan does not brute-force names or crawl the target site, so coverage is incomplete.
+    /// Return best-effort hostname evidence from public certificate and passive discovery sources. Coverage is incomplete, and results include provenance with optional DNS verification.
     public func getSubdomains(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -1678,7 +1763,7 @@ public final class SecurityService {
         )
     }
 
-    /// Find exposed software versions and deterministic web security misconfigurations using verified technology evidence, exact OSV package matching, CISA Known Exploited Vulnerabilities, FIRST EPSS, and isolated Edge Relay rendering. Results separate affected versions from configuration findings and preserve unknown coverage.
+    /// Correlate exposed software versions with authoritative public advisories and exploitation-priority data, and report deterministic web security misconfigurations separately. Results preserve evidence and unknown coverage.
     public func getVulnerabilities(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -1692,7 +1777,7 @@ public final class SecurityService {
         )
     }
 
-    /// Validate, normalize, and enrich international phone numbers with country-specific coverage levels, offline numbering-plan, location, time-zone, original prefix-carrier, portability-support, dialing, short-number, service, and official allocation metadata. US NANPA and Canadian CNA/CNAC snapshots add NPA-NXX central office code status and original code-holder evidence. DomScan uses its own Edge Relay and free local datasets without paid or per-number third-party lookups. Results never claim current carrier, reachability, subscriber identity, or individual-number assignment.
+    /// Validate, normalize, and enrich international phone numbers with maintained offline numbering-plan and public allocation data. Results include coverage, provenance, freshness, and limitations without paid or per-number third-party lookups, and never claim current carrier, reachability, subscriber identity, or individual-number assignment.
     public func validatePhoneNumber(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -1706,7 +1791,7 @@ public final class SecurityService {
         )
     }
 
-    /// Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and uses one DomScan Edge Relay batch with zero paid or per-number third-party lookups.
+    /// Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and makes no paid or per-number third-party lookup.
     public func validatePhoneNumbersBulk(_ params: [String: Any?] = [:]) async throws -> Any {
         try await client.request(
             endpoint: EndpointDefinition(
@@ -1790,6 +1875,28 @@ public final class SocialService {
             endpoint: EndpointDefinition(
                 method: "GET",
                 path: "/v1/social/info",
+                pathParams: [],
+                queryParams: [],
+                hasBody: false
+            ),
+            params: params
+        )
+    }
+}
+
+public final class UserService {
+    private let client: DomScanClient
+
+    init(client: DomScanClient) {
+        self.client = client
+    }
+
+    /// Get the active customer account credit balance without exposing transaction history.
+    public func getCreditBalance(_ params: [String: Any?] = [:]) async throws -> Any {
+        try await client.request(
+            endpoint: EndpointDefinition(
+                method: "GET",
+                path: "/v1/credits",
                 pathParams: [],
                 queryParams: [],
                 hasBody: false

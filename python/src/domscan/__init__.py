@@ -1,5 +1,26 @@
-from ._client import DomScan, DomScanAPIError
+from ._client import (
+  DomScan,
+  DomScanAPIError,
+  DomScanAuthenticationError,
+  DomScanCreditsError,
+  DomScanRateLimitError,
+  DomScanResponse,
+  DomScanTimeoutError,
+  DomScanUpstreamError,
+  DomScanValidationError,
+)
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
-__all__ = ["DomScan", "DomScanAPIError", "__version__"]
+__all__ = [
+  "DomScan",
+  "DomScanAPIError",
+  "DomScanAuthenticationError",
+  "DomScanCreditsError",
+  "DomScanRateLimitError",
+  "DomScanResponse",
+  "DomScanTimeoutError",
+  "DomScanUpstreamError",
+  "DomScanValidationError",
+  "__version__",
+]

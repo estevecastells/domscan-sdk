@@ -33,6 +33,7 @@ public final class DomScanClient {
     public final RecipesService recipes;
     public final SecurityService security;
     public final SocialService social;
+    public final UserService user;
 
     public DomScanClient() {
         this(new Builder());
@@ -42,7 +43,7 @@ public final class DomScanClient {
         this.apiKey = builder.apiKey != null ? builder.apiKey : System.getenv("DOMSCAN_API_KEY");
         this.baseUrl = trimTrailingSlash(builder.baseUrl != null ? builder.baseUrl : "https://domscan.net");
         this.timeout = builder.timeout != null ? builder.timeout : Duration.ofSeconds(10);
-        this.userAgent = builder.userAgent != null ? builder.userAgent : "domscan-java/0.2.0";
+        this.userAgent = builder.userAgent != null ? builder.userAgent : "domscan-java/0.3.0";
         this.httpClient = builder.httpClient != null ? builder.httpClient : HttpClient.newBuilder().connectTimeout(this.timeout).build();
         this.defaultHeaders = builder.headers != null ? new LinkedHashMap<>(builder.headers) : new LinkedHashMap<>();
         this.availability = new AvailabilityService(this);
@@ -55,6 +56,7 @@ public final class DomScanClient {
         this.recipes = new RecipesService(this);
         this.security = new SecurityService(this);
         this.social = new SocialService(this);
+        this.user = new UserService(this);
     }
 
     private String request(Endpoint endpoint, Map<String, Object> params) throws IOException, InterruptedException {
@@ -323,6 +325,19 @@ public final class DomScanClient {
         }
 
         /**
+         * Create a resumable asynchronous search over a curated English single-word corpus sourced from iannuttall/unclaimed under the MIT License. Check each selected word across 1 to 5 supported TLDs, with a hard limit of 100 word-TLD checks per job. Available, registered, and unknown remain distinct outcomes. Jobs use the existing batch status, results, and cancellation lifecycle.
+         */
+        public String createDomainDiscoveryJob(Map<String, Object> params) throws IOException, InterruptedException {
+            return client.request(new Endpoint(
+                "POST",
+                "/v1/domain-discovery/jobs",
+                List.of(),
+                List.of(),
+                true
+            ), params);
+        }
+
+        /**
          * Get information about which TLDs are supported and their RDAP server status.
          */
         public String getCoverage(Map<String, Object> params) throws IOException, InterruptedException {
@@ -330,7 +345,7 @@ public final class DomScanClient {
                 "GET",
                 "/v1/coverage",
                 List.of(),
-                List.of(),
+                List.of("live"),
                 false
             ), params);
         }
@@ -446,7 +461,7 @@ public final class DomScanClient {
         }
 
         /**
-         * Compare DNS answers from DomScan's configured Cloudflare and Google public recursive DoH providers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
+         * Compare answers from DomScan's configured public recursive resolvers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
          */
         public String getDnsPropagation(Map<String, Object> params) throws IOException, InterruptedException {
             return client.request(new Endpoint(
@@ -582,7 +597,7 @@ public final class DomScanClient {
         }
 
         /**
-         * Comprehensive health checks with DNS, SSL, email, proxy-enriched TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
+         * Comprehensive health checks with DNS, SSL, email, extended TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
          */
         public String getDomainHealth(Map<String, Object> params) throws IOException, InterruptedException {
             return client.request(new Endpoint(
@@ -719,7 +734,7 @@ public final class DomScanClient {
                 "GET",
                 "/v1/tlds",
                 List.of(),
-                List.of("type"),
+                List.of("type", "trust_tier", "use_case"),
                 false
             ), params);
         }
@@ -796,7 +811,7 @@ public final class DomScanClient {
         }
 
         /**
-         * Cancel unstarted technology scan work and settle item-level refunds. An already running browser scan may finish, but its result is discarded.
+         * Cancel unstarted technology scan work and settle item-level refunds. Work already in progress may finish and remains available in the job results.
          */
         public String cancelTechScanJob(Map<String, Object> params) throws IOException, InterruptedException {
             return client.request(new Endpoint(
@@ -835,6 +850,19 @@ public final class DomScanClient {
         }
 
         /**
+         * Queue 1 to 100 public page scrapes for asynchronous processing. Batch jobs are available to paid accounts, require an idempotency key, allow up to three active jobs and 300 queued items per account, and bill each accepted URL at the selected mode price. CAPTCHA solving and premium proxy selection are not offered.
+         */
+        public String createScrapeJob(Map<String, Object> params) throws IOException, InterruptedException {
+            return client.request(new Endpoint(
+                "POST",
+                "/v1/scrape/jobs",
+                List.of(),
+                List.of(),
+                true
+            ), params);
+        }
+
+        /**
          * Create a durable asynchronous technology scan job for up to 100 public targets. Supports fast, JavaScript-rendered, and bounded same-origin deep modes with item-level billing and refunds.
          */
         public String createTechScanJob(Map<String, Object> params) throws IOException, InterruptedException {
@@ -861,7 +889,7 @@ public final class DomScanClient {
         }
 
         /**
-         * Extract company information from a domain. Get name, industry, and contact details.
+         * Extract source-backed organization names, descriptions, declared social links, MX-inferred email providers, confidence, and provenance from public website and DNS metadata. Enrichment-only fields can be null.
          */
         public String getCompany(Map<String, Object> params) throws IOException, InterruptedException {
             return client.request(new Endpoint(
@@ -926,6 +954,32 @@ public final class DomScanClient {
         }
 
         /**
+         * Get owner-scoped progress, item counts, billing settlement, and expiration details.
+         */
+        public String getScrapeJob(Map<String, Object> params) throws IOException, InterruptedException {
+            return client.request(new Endpoint(
+                "GET",
+                "/v1/scrape/jobs/:job_id",
+                List.of("job_id"),
+                List.of(),
+                false
+            ), params);
+        }
+
+        /**
+         * Get ordered, paginated results for an owner-scoped scrape job. Full page results expire after 24 hours.
+         */
+        public String getScrapeJobResults(Map<String, Object> params) throws IOException, InterruptedException {
+            return client.request(new Endpoint(
+                "GET",
+                "/v1/scrape/jobs/:job_id/results",
+                List.of("job_id"),
+                List.of("limit", "offset"),
+                false
+            ), params);
+        }
+
+        /**
          * Get owner-scoped progress, item counts, billing settlement, and expiration details for a technology scan job.
          */
         public String getTechScanJob(Map<String, Object> params) throws IOException, InterruptedException {
@@ -972,7 +1026,7 @@ public final class DomScanClient {
                 "GET",
                 "/v1/url-intelligence",
                 List.of(),
-                List.of("url"),
+                List.of("url", "skip_cache"),
                 false
             ), params);
         }
@@ -985,7 +1039,7 @@ public final class DomScanClient {
                 "GET",
                 "/v1/identity-assets",
                 List.of(),
-                List.of("domain"),
+                List.of("domain", "skip_cache"),
                 false
             ), params);
         }
@@ -1004,7 +1058,7 @@ public final class DomScanClient {
         }
 
         /**
-         * Run up to 10 ordered fast technology scans in one request. Each valid target is billed independently, and failed upstream scans are refunded independently.
+         * Run up to 10 ordered fast technology scans in one request. Each attempted target is billed independently, including target-site failures. Verified DomScan service failures are refunded independently.
          */
         public String postTechStackBulk(Map<String, Object> params) throws IOException, InterruptedException {
             return client.request(new Endpoint(
@@ -1024,8 +1078,21 @@ public final class DomScanClient {
                 "GET",
                 "/v1/identity-resolution",
                 List.of(),
-                List.of("domain"),
+                List.of("domain", "skip_cache"),
                 false
+            ), params);
+        }
+
+        /**
+         * Retrieve one public web page with bounded redirects and response size. Standard requests use one attempt, resilient requests may use one eligible retry, and rendered modes execute page JavaScript in an isolated browser. Free accounts can use standard mode with lower request, concurrency, daily, monthly, and response-size limits. CAPTCHA solving and premium proxy selection are not offered. Target-site failures remain billable after processing starts; verified platform failures are refunded.
+         */
+        public String scrapePage(Map<String, Object> params) throws IOException, InterruptedException {
+            return client.request(new Endpoint(
+                "POST",
+                "/v1/scrape",
+                List.of(),
+                List.of(),
+                true
             ), params);
         }
     }
@@ -1049,7 +1116,7 @@ public final class DomScanClient {
         }
 
         /**
-         * Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and failed items are refunded independently.
+         * Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and refund rules. Target-site outcomes remain billed, while verified service failures are refunded independently.
          */
         public String createApiBatch(Map<String, Object> params) throws IOException, InterruptedException {
             return client.request(new Endpoint(
@@ -1261,6 +1328,19 @@ public final class DomScanClient {
                 false
             ), params);
         }
+
+        /**
+         * Fetch RDAP and traditional WHOIS in parallel, then merge available abuse contacts, registrar WHOIS details, glue addresses, and raw WHOIS evidence into the normalized response.
+         */
+        public String getWhoisV2(Map<String, Object> params) throws IOException, InterruptedException {
+            return client.request(new Endpoint(
+                "GET",
+                "/v2/whois",
+                List.of(),
+                List.of("domain"),
+                false
+            ), params);
+        }
     }
 
     public static final class PricingService extends Service {
@@ -1360,7 +1440,7 @@ public final class DomScanClient {
                 "GET",
                 "/v1/recipes/competitor-intel",
                 List.of(),
-                List.of("domain", "discover_subdomains", "analyze_email"),
+                List.of("domain", "discover_subdomains", "analyze_infrastructure", "analyze_email"),
                 false
             ), params);
         }
@@ -1464,7 +1544,7 @@ public final class DomScanClient {
                 "GET",
                 "/v1/recipes/portfolio-audit",
                 List.of(),
-                List.of("domains", "include_valuation", "include_health", "alert_expiring_days"),
+                List.of("domains", "include_valuation", "include_health", "include_pricing", "alert_expiring_days"),
                 false
             ), params);
         }
@@ -1490,7 +1570,7 @@ public final class DomScanClient {
                 "GET",
                 "/v1/recipes/threat-assessment",
                 List.of(),
-                List.of("domain", "max_threats", "include_evidence"),
+                List.of("domain", "analyze_threats", "max_threats", "include_evidence"),
                 false
             ), params);
         }
@@ -1606,7 +1686,7 @@ public final class DomScanClient {
         }
 
         /**
-         * Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and proxy-backed mail security checks.
+         * Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and mail security checks.
          */
         public String getEmailCompliance(Map<String, Object> params) throws IOException, InterruptedException {
             return client.request(new Endpoint(
@@ -1665,7 +1745,7 @@ public final class DomScanClient {
                 "GET",
                 "/v1/ssl/expiring",
                 List.of(),
-                List.of("domain", "threshold_days"),
+                List.of("domain", "days", "threshold_days"),
                 false
             ), params);
         }
@@ -1684,7 +1764,7 @@ public final class DomScanClient {
         }
 
         /**
-         * Return best-effort public hostname evidence from a sequential passive pipeline. Discovery tries crt.sh first, then can fall back to HackerTarget, ThreatMiner, the Wayback Machine, and CertSpotter. Results include their evidence source. DomScan does not brute-force names or crawl the target site, so coverage is incomplete.
+         * Return best-effort hostname evidence from public certificate and passive discovery sources. Coverage is incomplete, and results include provenance with optional DNS verification.
          */
         public String getSubdomains(Map<String, Object> params) throws IOException, InterruptedException {
             return client.request(new Endpoint(
@@ -1710,7 +1790,7 @@ public final class DomScanClient {
         }
 
         /**
-         * Find exposed software versions and deterministic web security misconfigurations using verified technology evidence, exact OSV package matching, CISA Known Exploited Vulnerabilities, FIRST EPSS, and isolated Edge Relay rendering. Results separate affected versions from configuration findings and preserve unknown coverage.
+         * Correlate exposed software versions with authoritative public advisories and exploitation-priority data, and report deterministic web security misconfigurations separately. Results preserve evidence and unknown coverage.
          */
         public String getVulnerabilities(Map<String, Object> params) throws IOException, InterruptedException {
             return client.request(new Endpoint(
@@ -1723,7 +1803,7 @@ public final class DomScanClient {
         }
 
         /**
-         * Validate, normalize, and enrich international phone numbers with country-specific coverage levels, offline numbering-plan, location, time-zone, original prefix-carrier, portability-support, dialing, short-number, service, and official allocation metadata. US NANPA and Canadian CNA/CNAC snapshots add NPA-NXX central office code status and original code-holder evidence. DomScan uses its own Edge Relay and free local datasets without paid or per-number third-party lookups. Results never claim current carrier, reachability, subscriber identity, or individual-number assignment.
+         * Validate, normalize, and enrich international phone numbers with maintained offline numbering-plan and public allocation data. Results include coverage, provenance, freshness, and limitations without paid or per-number third-party lookups, and never claim current carrier, reachability, subscriber identity, or individual-number assignment.
          */
         public String validatePhoneNumber(Map<String, Object> params) throws IOException, InterruptedException {
             return client.request(new Endpoint(
@@ -1736,7 +1816,7 @@ public final class DomScanClient {
         }
 
         /**
-         * Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and uses one DomScan Edge Relay batch with zero paid or per-number third-party lookups.
+         * Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and makes no paid or per-number third-party lookup.
          */
         public String validatePhoneNumbersBulk(Map<String, Object> params) throws IOException, InterruptedException {
             return client.request(new Endpoint(
@@ -1813,6 +1893,25 @@ public final class DomScanClient {
             return client.request(new Endpoint(
                 "GET",
                 "/v1/social/info",
+                List.of(),
+                List.of(),
+                false
+            ), params);
+        }
+    }
+
+    public static final class UserService extends Service {
+        private UserService(DomScanClient client) {
+            super(client);
+        }
+
+        /**
+         * Get the active customer account credit balance without exposing transaction history.
+         */
+        public String getCreditBalance(Map<String, Object> params) throws IOException, InterruptedException {
+            return client.request(new Endpoint(
+                "GET",
+                "/v1/credits",
                 List.of(),
                 List.of(),
                 false

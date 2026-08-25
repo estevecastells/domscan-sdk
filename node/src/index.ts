@@ -1,6 +1,13 @@
 import { endpointManifest, type EndpointManifest } from './generated.js';
+import type {
+  OperationName,
+  OperationParams,
+  OperationResponse,
+} from './generated-types.js';
 
-export const VERSION = '0.2.0';
+export type * from './generated-types.js';
+
+export const VERSION = '0.3.0';
 
 export interface DomScanClientOptions {
   apiKey?: string;
@@ -9,18 +16,49 @@ export interface DomScanClientOptions {
   userAgent?: string;
   fetch?: typeof globalThis.fetch;
   headers?: HeadersInit;
+  maxRetries?: number;
 }
 
 export interface RequestOptions {
   headers?: HeadersInit;
   signal?: AbortSignal;
   timeout?: number;
+  maxRetries?: number;
+  idempotencyKey?: string;
+  withResponse?: boolean;
+}
+
+export interface DomScanResponseMetadata {
+  requestId?: string;
+  apiVersion?: string;
+  responseTimeMs?: number;
+  credits: {
+    requested?: number;
+    charged?: number;
+    refunded?: number;
+    remaining?: number;
+  };
+  rateLimit: {
+    plan?: string;
+    limit?: number;
+    remaining?: number;
+    policy?: string;
+    retryAfter?: number;
+  };
+  freshness?: 'fresh' | 'cached' | 'stale' | 'mixed' | 'unknown' | string;
+}
+
+export interface DomScanResponse<TData> {
+  data: TData;
+  meta: DomScanResponseMetadata;
+  response: Response;
 }
 
 type ManifestEndpoint = {
   title: string;
   description: string;
   method: string;
+  operationId: string;
   path: string;
   pathParams: readonly string[];
   queryParams: readonly string[];
@@ -38,9 +76,30 @@ type QueryValue =
   | Record<string, unknown>;
 
 type RequestParams = Record<string, QueryValue>;
-type DomScanMethod = (params?: RequestParams, options?: RequestOptions) => Promise<unknown>;
+type DataRequestOptions = RequestOptions & { withResponse?: false };
+type FullRequestOptions = RequestOptions & { withResponse: true };
+type OperationFor<TEndpoint> = TEndpoint extends { operationId: infer TName extends OperationName }
+  ? TName
+  : never;
+type OptionalParamsMethod<TName extends OperationName> = {
+  (params: OperationParams<TName> | undefined, options: FullRequestOptions): Promise<
+    DomScanResponse<OperationResponse<TName>>
+  >;
+  (params?: OperationParams<TName>, options?: DataRequestOptions): Promise<OperationResponse<TName>>;
+};
+type RequiredParamsMethod<TName extends OperationName> = {
+  (params: OperationParams<TName>, options: FullRequestOptions): Promise<
+    DomScanResponse<OperationResponse<TName>>
+  >;
+  (params: OperationParams<TName>, options?: DataRequestOptions): Promise<OperationResponse<TName>>;
+};
+type DomScanMethod<TEndpoint> = OperationFor<TEndpoint> extends infer TName extends OperationName
+  ? {} extends OperationParams<TName>
+    ? OptionalParamsMethod<TName>
+    : RequiredParamsMethod<TName>
+  : never;
 type ServiceMap<TNamespace extends Record<string, unknown>> = {
-  -readonly [K in keyof TNamespace]: DomScanMethod;
+  -readonly [K in keyof TNamespace]: DomScanMethod<TNamespace[K]>;
 };
 
 export type DomScanServices = {
@@ -125,6 +184,10 @@ export class DomScanAPIError extends Error {
   readonly code?: string;
   readonly details?: unknown;
   readonly requestId?: string;
+  readonly type?: string;
+  readonly retryable: boolean;
+  readonly retryAfter?: number;
+  readonly docsUrl?: string;
 
   constructor(
     message: string,
@@ -133,6 +196,10 @@ export class DomScanAPIError extends Error {
       code?: string;
       details?: unknown;
       requestId?: string;
+      type?: string;
+      retryable?: boolean;
+      retryAfter?: number;
+      docsUrl?: string;
     }
   ) {
     super(message);
@@ -141,17 +208,93 @@ export class DomScanAPIError extends Error {
     this.code = options.code;
     this.details = options.details;
     this.requestId = options.requestId;
+    this.type = options.type;
+    this.retryable = options.retryable ?? false;
+    this.retryAfter = options.retryAfter;
+    this.docsUrl = options.docsUrl;
   }
 }
 
+export class DomScanAuthenticationError extends DomScanAPIError {}
+export class DomScanCreditsError extends DomScanAPIError {}
+export class DomScanRateLimitError extends DomScanAPIError {}
+export class DomScanValidationError extends DomScanAPIError {}
+export class DomScanTimeoutError extends DomScanAPIError {}
+export class DomScanUpstreamError extends DomScanAPIError {}
+
+function optionalInteger(headers: Headers, name: string): number | undefined {
+  const raw = headers.get(name);
+  if (raw === null || raw === '') return undefined;
+  const value = Number.parseInt(raw, 10);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+function retryAfterSeconds(headers: Headers): number | undefined {
+  const raw = headers.get('retry-after');
+  if (!raw) return undefined;
+  const seconds = Number.parseInt(raw, 10);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds;
+  const date = Date.parse(raw);
+  if (!Number.isFinite(date)) return undefined;
+  return Math.max(0, Math.ceil((date - Date.now()) / 1_000));
+}
+
+function responseMetadata(headers: Headers): DomScanResponseMetadata {
+  const responseTime = headers.get('x-response-time');
+  return {
+    requestId: headers.get('x-request-id') || undefined,
+    apiVersion: headers.get('x-api-version') || undefined,
+    responseTimeMs: responseTime ? Number.parseFloat(responseTime) : undefined,
+    credits: {
+      requested: optionalInteger(headers, 'x-credits-requested'),
+      charged: optionalInteger(headers, 'x-credits-charged'),
+      refunded: optionalInteger(headers, 'x-credits-refunded'),
+      remaining: optionalInteger(headers, 'x-credits-remaining'),
+    },
+    rateLimit: {
+      plan: headers.get('x-ratelimit-plan') || undefined,
+      limit: optionalInteger(headers, 'x-ratelimit-limit'),
+      remaining: optionalInteger(headers, 'x-ratelimit-remaining'),
+      policy: headers.get('x-ratelimit-policy') || undefined,
+      retryAfter: retryAfterSeconds(headers),
+    },
+    freshness: headers.get('x-data-freshness') || undefined,
+  };
+}
+
+function wait(delayMs: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.reject(signal.reason);
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(resolve, delayMs);
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timeout);
+        reject(signal.reason);
+      },
+      { once: true }
+    );
+  });
+}
+
 function createServices(
-  request: (endpoint: ManifestEndpoint, params?: RequestParams, options?: RequestOptions) => Promise<unknown>
+  request: (
+    endpoint: ManifestEndpoint,
+    params?: RequestParams,
+    options?: RequestOptions
+  ) => Promise<unknown>
 ): DomScanServices {
-  const services = {} as Record<string, Record<string, DomScanMethod>>;
+  const services = {} as Record<
+    string,
+    Record<string, (params?: RequestParams, options?: RequestOptions) => Promise<unknown>>
+  >;
 
   for (const namespace of Object.keys(endpointManifest) as Array<keyof EndpointManifest>) {
     const definitions = endpointManifest[namespace];
-    const service = {} as Record<string, DomScanMethod>;
+    const service = {} as Record<
+      string,
+      (params?: RequestParams, options?: RequestOptions) => Promise<unknown>
+    >;
 
     for (const methodName of Object.keys(definitions) as Array<keyof typeof definitions>) {
       const endpoint = definitions[methodName] as ManifestEndpoint;
@@ -164,7 +307,7 @@ function createServices(
     services[String(namespace)] = service;
   }
 
-  return services as DomScanServices;
+  return services as unknown as DomScanServices;
 }
 
 export class DomScan {
@@ -174,6 +317,7 @@ export class DomScan {
   private readonly userAgent: string;
   private readonly fetchImpl: typeof globalThis.fetch;
   private readonly defaultHeaders: HeadersInit;
+  private readonly maxRetries: number;
 
   constructor(options: DomScanClientOptions = {}) {
     const fetchImpl = options.fetch ?? globalThis.fetch;
@@ -188,6 +332,7 @@ export class DomScan {
     this.userAgent = options.userAgent ?? `domscan-node/${VERSION}`;
     this.fetchImpl = fetchImpl;
     this.defaultHeaders = options.headers ?? {};
+    this.maxRetries = Math.max(0, options.maxRetries ?? 2);
 
     Object.assign(this, createServices((endpoint, params, requestOptions) => this.request(endpoint, params, requestOptions)));
   }
@@ -244,7 +389,6 @@ export class DomScan {
 
     if (this.apiKey) {
       headers.set('authorization', `Bearer ${this.apiKey}`);
-      headers.set('x-api-key', this.apiKey);
     }
 
     if (options.headers) {
@@ -257,94 +401,160 @@ export class DomScan {
       body = JSON.stringify(bodyPayload || {});
     }
 
-    const controller = new AbortController();
     const timeoutMs = options.timeout ?? this.timeout;
-    const signal = controller.signal;
     const externalSignal = options.signal;
-    let timedOut = false;
-    const abortFromExternalSignal = () => controller.abort(externalSignal?.reason);
 
-    if (externalSignal) {
-      if (externalSignal.aborted) {
-        controller.abort(externalSignal.reason);
-      } else {
-        externalSignal.addEventListener('abort', abortFromExternalSignal, {
-          once: true,
-        });
-      }
+    if (options.idempotencyKey) {
+      headers.set('idempotency-key', options.idempotencyKey);
     }
 
-    const timeoutId = setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, timeoutMs);
+    const maxRetries = Math.max(0, options.maxRetries ?? this.maxRetries);
+    const safelyRetryable = endpoint.method === 'GET' || Boolean(options.idempotencyKey);
 
-    try {
-      const response = await this.fetchImpl(url, {
-        method: endpoint.method,
-        headers,
-        body,
-        signal,
-      });
-
-      const contentType = response.headers.get('content-type') || '';
-      const responseBody = await response.text();
-      let payload: unknown = responseBody;
-      if (responseBody && contentType.includes('json')) {
-        try {
-          payload = JSON.parse(responseBody);
-        } catch {
-          payload = responseBody;
+    for (let attempt = 0; ; attempt += 1) {
+      const controller = new AbortController();
+      let externalAbortListener: (() => void) | undefined;
+      if (externalSignal) {
+        if (externalSignal.aborted) {
+          controller.abort(externalSignal.reason);
+        } else {
+          externalAbortListener = () => controller.abort(externalSignal.reason);
+          externalSignal.addEventListener('abort', externalAbortListener, { once: true });
         }
       }
+      const timeoutId = setTimeout(
+        () => controller.abort(new DOMException('Request timed out', 'AbortError')),
+        timeoutMs
+      );
 
-      if (!response.ok) {
-        throw this.buildApiError(response.status, response.headers.get('x-request-id'), payload);
-      }
-
-      return payload;
-    } catch (error) {
-      if (error instanceof DomScanAPIError) {
-        throw error;
-      }
-
-      if (timedOut) {
-        throw new DomScanAPIError('Request timed out', {
-          status: 408,
-          details: error,
+      try {
+        const response = await this.fetchImpl(url, {
+            method: endpoint.method,
+            headers,
+            body,
+            signal: controller.signal,
         });
-      }
+        const contentType = response.headers.get('content-type') || '';
+        const responseBody = await response.text();
+        let payload: unknown = responseBody;
+        if (responseBody && contentType.includes('json')) {
+          try {
+            payload = JSON.parse(responseBody);
+          } catch {
+            payload = responseBody;
+          }
+        }
 
-      if (externalSignal?.aborted) {
-        throw new DomScanAPIError('Request aborted', {
-          status: 0,
-          details: error,
-        });
-      }
+        if (!response.ok) {
+          const apiError = this.buildApiError(response, payload);
+          if (safelyRetryable && apiError.retryable && attempt < maxRetries) {
+            await wait(
+              (apiError.retryAfter ?? Math.min(8, 2 ** attempt)) * 1_000,
+              externalSignal
+            );
+            continue;
+          }
+          throw apiError;
+        }
 
-      throw error;
-    } finally {
-      clearTimeout(timeoutId);
-      externalSignal?.removeEventListener('abort', abortFromExternalSignal);
+        if (options.withResponse) {
+          return {
+            data: payload,
+            meta: responseMetadata(response.headers),
+            response,
+          } satisfies DomScanResponse<unknown>;
+        }
+        return payload;
+      } catch (error) {
+        if (error instanceof DomScanAPIError) throw error;
+        if (externalSignal?.aborted) {
+          throw new DomScanAPIError('Request aborted', {
+            status: 0,
+            code: 'SDK_ABORTED',
+            type: 'request_error',
+            retryable: false,
+            details: externalSignal.reason || error,
+          });
+        }
+        if (error instanceof Error && error.name === 'AbortError') {
+          if (safelyRetryable && attempt < maxRetries) {
+            await wait(Math.min(8_000, 250 * 2 ** attempt), externalSignal);
+            continue;
+          }
+          throw new DomScanTimeoutError('DomScan request timed out', {
+            status: 0,
+            code: 'SDK_TIMEOUT',
+            retryable: safelyRetryable,
+            details: error,
+          });
+        }
+        if (safelyRetryable && attempt < maxRetries) {
+          await wait(Math.min(8_000, 250 * 2 ** attempt), externalSignal);
+          continue;
+        }
+        throw new DomScanAPIError(
+          error instanceof Error ? error.message : 'DomScan network request failed',
+          {
+            status: 0,
+            code: 'SDK_NETWORK_ERROR',
+            type: 'request_error',
+            retryable: safelyRetryable,
+            details: error,
+          }
+        );
+      } finally {
+        clearTimeout(timeoutId);
+        if (externalAbortListener) {
+          externalSignal?.removeEventListener('abort', externalAbortListener);
+        }
+      }
     }
   }
 
   private buildApiError(
-    status: number,
-    requestId: string | null,
+    response: Response,
     payload: unknown
   ): DomScanAPIError {
     const errorPayload = isRecord(payload) && isRecord(payload.error) ? payload.error : isRecord(payload) ? payload : undefined;
     const message =
       (errorPayload && typeof errorPayload.message === 'string' && errorPayload.message) ||
-      `DomScan request failed with status ${status}`;
+      `DomScan request failed with status ${response.status}`;
     const code =
       errorPayload && typeof errorPayload.code === 'string' ? errorPayload.code : undefined;
+    const type =
+      errorPayload && typeof errorPayload.type === 'string' ? errorPayload.type : undefined;
+    const retryable = Boolean(errorPayload?.retryable);
+    const retryAfter =
+      errorPayload && typeof errorPayload.retry_after === 'number'
+        ? errorPayload.retry_after
+        : retryAfterSeconds(response.headers);
+    const docsUrl =
+      errorPayload && typeof errorPayload.docs_url === 'string'
+        ? errorPayload.docs_url
+        : undefined;
+    const ErrorClass =
+      type === 'authentication_error'
+        ? DomScanAuthenticationError
+        : type === 'credits_error'
+          ? DomScanCreditsError
+          : type === 'rate_limit_error'
+            ? DomScanRateLimitError
+            : type === 'validation_error'
+              ? DomScanValidationError
+              : type === 'timeout_error'
+                ? DomScanTimeoutError
+                : type === 'upstream_error'
+                  ? DomScanUpstreamError
+                  : DomScanAPIError;
 
-    return new DomScanAPIError(message, {
-      status,
+    return new ErrorClass(message, {
+      status: response.status,
       code,
-      requestId: requestId || undefined,
+      type,
+      retryable,
+      retryAfter,
+      docsUrl,
+      requestId: response.headers.get('x-request-id') || undefined,
       details: payload,
     });
   }

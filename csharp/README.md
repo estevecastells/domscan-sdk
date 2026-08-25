@@ -2,13 +2,13 @@
 
 Official C# client for the [DomScan API](https://domscan.net/docs).
 
-This SDK is generated from the shared endpoint manifest in this repository and covers the same 113 public non-session endpoints as the other official DomScan SDKs.
+This SDK is generated from the shared endpoint manifest in this repository and covers the same 120 public non-session endpoints as the other official DomScan SDKs.
 
 ## Installation
 
 ```bash
-curl -LO https://github.com/estevecastells/domscan-sdk/releases/latest/download/DomScan.Sdk.0.2.0.nupkg
-dotnet add package DomScan.Sdk --source . --version 0.2.0
+curl -LO https://github.com/estevecastells/domscan-sdk/releases/latest/download/DomScan.Sdk.0.3.0.nupkg
+dotnet add package DomScan.Sdk --source . --version 0.3.0
 ```
 
 ## Quick Start

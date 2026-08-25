@@ -1,6 +1,6 @@
 Gem::Specification.new do |spec|
   spec.name          = "domscan-sdk"
-  spec.version       = "0.2.0"
+  spec.version       = "0.3.0"
   spec.authors       = ["DomScan"]
   spec.email         = ["support@domscan.net"]
   spec.summary       = "Official Ruby SDK for the DomScan API"

@@ -30,6 +30,6 @@ Package registry publication varies by language. Each language README documents 
 ## Notes
 
 - These SDKs are generated from DomScan's internal API registry and synced into this public repository.
-- The public packages currently cover 113 public non-session endpoints across availability, DNS, WHOIS, security, pricing, recipes, and intelligence workflows.
+- The public packages currently cover 120 public non-session endpoints across availability, DNS, WHOIS, security, pricing, recipes, and intelligence workflows.
 - The committed `manifest/endpoints.json` file is the public endpoint source used to render the generated SDK packages in this repository.
 - Run `node scripts/generate-sdks.mjs` after updating the manifest. Continuous integration verifies that generated clients stay current.

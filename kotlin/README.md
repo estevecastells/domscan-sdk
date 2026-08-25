@@ -2,14 +2,14 @@
 
 Official Kotlin client for the [DomScan API](https://domscan.net/docs).
 
-This SDK is generated from the shared endpoint manifest in this repository and covers the same 113 public non-session endpoints as the other official DomScan SDKs.
+This SDK is generated from the shared endpoint manifest in this repository and covers the same 120 public non-session endpoints as the other official DomScan SDKs.
 
 ## Installation
 
 ```bash
 mkdir -p libs
-curl -L https://github.com/estevecastells/domscan-sdk/releases/latest/download/domscan-sdk-kotlin-0.2.0.jar -o libs/domscan-sdk-kotlin-0.2.0.jar
-# build.gradle.kts: implementation(files("libs/domscan-sdk-kotlin-0.2.0.jar"))
+curl -L https://github.com/estevecastells/domscan-sdk/releases/latest/download/domscan-sdk-kotlin-0.3.0.jar -o libs/domscan-sdk-kotlin-0.3.0.jar
+# build.gradle.kts: implementation(files("libs/domscan-sdk-kotlin-0.3.0.jar"))
 ```
 
 ## Quick Start

@@ -23,7 +23,7 @@ describe('DomScan Node SDK', () => {
 
     await client.availability.checkDomainAvailability({
       name: 'launch',
-      tlds: ['com', 'io', 'ai'],
+      tlds: 'com,io,ai',
       prefer_cache: true,
     });
 
@@ -84,10 +84,10 @@ describe('DomScan Node SDK', () => {
           });
         })
     );
-    const client = new DomScan({ fetch: fetchMock, timeout: 5 });
+    const client = new DomScan({ fetch: fetchMock, timeout: 5, maxRetries: 0 });
 
     await expect(client.meta.getPricingInfo()).rejects.toEqual(
-      expect.objectContaining<Partial<DomScanAPIError>>({ status: 408 })
+      expect.objectContaining<Partial<DomScanAPIError>>({ status: 0, code: 'SDK_TIMEOUT' })
     );
   });
 
@@ -105,6 +105,10 @@ describe('DomScan Node SDK', () => {
     const request = client.meta.getPricingInfo({}, { signal: controller.signal });
     controller.abort();
 
-    await expect(request).rejects.toMatchObject({ status: 0, message: 'Request aborted' });
+    await expect(request).rejects.toMatchObject({
+      status: 0,
+      code: 'SDK_ABORTED',
+      message: 'Request aborted',
+    });
   });
 });

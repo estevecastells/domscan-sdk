@@ -55,7 +55,7 @@ impl DomScanClient {
         let inner = InnerClient {
             api_key: resolved_api_key,
             base_url: "https://domscan.net".to_string(),
-            user_agent: "domscan-rust/0.2.0".to_string(),
+            user_agent: "domscan-rust/0.3.0".to_string(),
             http_client,
         };
         Self { inner: Arc::new(inner) }
@@ -99,6 +99,10 @@ impl DomScanClient {
 
     pub fn social(&self) -> SocialService {
         SocialService { client: Arc::clone(&self.inner) }
+    }
+
+    pub fn user(&self) -> UserService {
+        UserService { client: Arc::clone(&self.inner) }
     }
 }
 
@@ -247,13 +251,24 @@ impl AvailabilityService {
         }, params).await
     }
 
+    /// Create a resumable asynchronous search over a curated English single-word corpus sourced from iannuttall/unclaimed under the MIT License. Check each selected word across 1 to 5 supported TLDs, with a hard limit of 100 word-TLD checks per job. Available, registered, and unknown remain distinct outcomes. Jobs use the existing batch status, results, and cancellation lifecycle.
+    pub async fn create_domain_discovery_job(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/domain-discovery/jobs".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
     /// Get information about which TLDs are supported and their RDAP server status.
     pub async fn get_coverage(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/coverage".to_string(),
             path_params: vec![],
-            query_params: vec![],
+            query_params: vec!["live".to_string()],
             has_body: false,
         }, params).await
     }
@@ -353,7 +368,7 @@ impl DnsService {
         }, params).await
     }
 
-    /// Compare DNS answers from DomScan's configured Cloudflare and Google public recursive DoH providers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
+    /// Compare answers from DomScan's configured public recursive resolvers. Without expected, the percentage reports the largest resolver-convergence cohort. With expected, it reports providers whose answers match that value. This is not a geographic or worldwide propagation measurement.
     pub async fn get_dns_propagation(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
@@ -470,7 +485,7 @@ impl DomainService {
         }, params).await
     }
 
-    /// Comprehensive health checks with DNS, SSL, email, proxy-enriched TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
+    /// Comprehensive health checks with DNS, SSL, email, extended TLS and HTTP versions, HSTS audit, SMTP TLS, and MX FCrDNS signals.
     pub async fn get_domain_health(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
@@ -586,7 +601,7 @@ impl DomainService {
             method: "GET".to_string(),
             path: "/v1/tlds".to_string(),
             path_params: vec![],
-            query_params: vec!["type".to_string()],
+            query_params: vec!["type".to_string(), "trust_tier".to_string(), "use_case".to_string()],
             has_body: false,
         }, params).await
     }
@@ -653,7 +668,7 @@ impl IntelligenceService {
         }, params).await
     }
 
-    /// Cancel unstarted technology scan work and settle item-level refunds. An already running browser scan may finish, but its result is discarded.
+    /// Cancel unstarted technology scan work and settle item-level refunds. Work already in progress may finish and remains available in the job results.
     pub async fn cancel_tech_scan_job(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "DELETE".to_string(),
@@ -686,6 +701,17 @@ impl IntelligenceService {
         }, params).await
     }
 
+    /// Queue 1 to 100 public page scrapes for asynchronous processing. Batch jobs are available to paid accounts, require an idempotency key, allow up to three active jobs and 300 queued items per account, and bill each accepted URL at the selected mode price. CAPTCHA solving and premium proxy selection are not offered.
+    pub async fn create_scrape_job(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/scrape/jobs".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
+        }, params).await
+    }
+
     /// Create a durable asynchronous technology scan job for up to 100 public targets. Supports fast, JavaScript-rendered, and bounded same-origin deep modes with item-level billing and refunds.
     pub async fn create_tech_scan_job(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
@@ -708,7 +734,7 @@ impl IntelligenceService {
         }, params).await
     }
 
-    /// Extract company information from a domain. Get name, industry, and contact details.
+    /// Extract source-backed organization names, descriptions, declared social links, MX-inferred email providers, confidence, and provenance from public website and DNS metadata. Enrichment-only fields can be null.
     pub async fn get_company(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
@@ -763,6 +789,28 @@ impl IntelligenceService {
         }, params).await
     }
 
+    /// Get owner-scoped progress, item counts, billing settlement, and expiration details.
+    pub async fn get_scrape_job(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/scrape/jobs/:job_id".to_string(),
+            path_params: vec!["job_id".to_string()],
+            query_params: vec![],
+            has_body: false,
+        }, params).await
+    }
+
+    /// Get ordered, paginated results for an owner-scoped scrape job. Full page results expire after 24 hours.
+    pub async fn get_scrape_job_results(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/scrape/jobs/:job_id/results".to_string(),
+            path_params: vec!["job_id".to_string()],
+            query_params: vec!["limit".to_string(), "offset".to_string()],
+            has_body: false,
+        }, params).await
+    }
+
     /// Get owner-scoped progress, item counts, billing settlement, and expiration details for a technology scan job.
     pub async fn get_tech_scan_job(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
@@ -802,7 +850,7 @@ impl IntelligenceService {
             method: "GET".to_string(),
             path: "/v1/url-intelligence".to_string(),
             path_params: vec![],
-            query_params: vec!["url".to_string()],
+            query_params: vec!["url".to_string(), "skip_cache".to_string()],
             has_body: false,
         }, params).await
     }
@@ -813,7 +861,7 @@ impl IntelligenceService {
             method: "GET".to_string(),
             path: "/v1/identity-assets".to_string(),
             path_params: vec![],
-            query_params: vec!["domain".to_string()],
+            query_params: vec!["domain".to_string(), "skip_cache".to_string()],
             has_body: false,
         }, params).await
     }
@@ -829,7 +877,7 @@ impl IntelligenceService {
         }, params).await
     }
 
-    /// Run up to 10 ordered fast technology scans in one request. Each valid target is billed independently, and failed upstream scans are refunded independently.
+    /// Run up to 10 ordered fast technology scans in one request. Each attempted target is billed independently, including target-site failures. Verified DomScan service failures are refunded independently.
     pub async fn post_tech_stack_bulk(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "POST".to_string(),
@@ -846,8 +894,19 @@ impl IntelligenceService {
             method: "GET".to_string(),
             path: "/v1/identity-resolution".to_string(),
             path_params: vec![],
-            query_params: vec!["domain".to_string()],
+            query_params: vec!["domain".to_string(), "skip_cache".to_string()],
             has_body: false,
+        }, params).await
+    }
+
+    /// Retrieve one public web page with bounded redirects and response size. Standard requests use one attempt, resilient requests may use one eligible retry, and rendered modes execute page JavaScript in an isolated browser. Free accounts can use standard mode with lower request, concurrency, daily, monthly, and response-size limits. CAPTCHA solving and premium proxy selection are not offered. Target-site failures remain billable after processing starts; verified platform failures are refunded.
+    pub async fn scrape_page(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "POST".to_string(),
+            path: "/v1/scrape".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: true,
         }, params).await
     }
 }
@@ -869,7 +928,7 @@ impl MetaService {
         }, params).await
     }
 
-    /// Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and failed items are refunded independently.
+    /// Queue up to 100 supported GET API requests for asynchronous processing. Each item keeps normal endpoint pricing and refund rules. Target-site outcomes remain billed, while verified service failures are refunded independently.
     pub async fn create_api_batch(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "POST".to_string(),
@@ -1051,6 +1110,17 @@ impl OsintService {
             has_body: false,
         }, params).await
     }
+
+    /// Fetch RDAP and traditional WHOIS in parallel, then merge available abuse contacts, registrar WHOIS details, glue addresses, and raw WHOIS evidence into the normalized response.
+    pub async fn get_whois_v2(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v2/whois".to_string(),
+            path_params: vec![],
+            query_params: vec!["domain".to_string()],
+            has_body: false,
+        }, params).await
+    }
 }
 
 #[derive(Clone)]
@@ -1138,7 +1208,7 @@ impl RecipesService {
             method: "GET".to_string(),
             path: "/v1/recipes/competitor-intel".to_string(),
             path_params: vec![],
-            query_params: vec!["domain".to_string(), "discover_subdomains".to_string(), "analyze_email".to_string()],
+            query_params: vec!["domain".to_string(), "discover_subdomains".to_string(), "analyze_infrastructure".to_string(), "analyze_email".to_string()],
             has_body: false,
         }, params).await
     }
@@ -1226,7 +1296,7 @@ impl RecipesService {
             method: "GET".to_string(),
             path: "/v1/recipes/portfolio-audit".to_string(),
             path_params: vec![],
-            query_params: vec!["domains".to_string(), "include_valuation".to_string(), "include_health".to_string(), "alert_expiring_days".to_string()],
+            query_params: vec!["domains".to_string(), "include_valuation".to_string(), "include_health".to_string(), "include_pricing".to_string(), "alert_expiring_days".to_string()],
             has_body: false,
         }, params).await
     }
@@ -1248,7 +1318,7 @@ impl RecipesService {
             method: "GET".to_string(),
             path: "/v1/recipes/threat-assessment".to_string(),
             path_params: vec![],
-            query_params: vec!["domain".to_string(), "max_threats".to_string(), "include_evidence".to_string()],
+            query_params: vec!["domain".to_string(), "analyze_threats".to_string(), "max_threats".to_string(), "include_evidence".to_string()],
             has_body: false,
         }, params).await
     }
@@ -1348,7 +1418,7 @@ impl SecurityService {
         }, params).await
     }
 
-    /// Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and proxy-backed mail security checks.
+    /// Provider-oriented sender readiness report for Google/Gmail and Microsoft Outlook.com high-volume requirements, using SPF, DKIM, DMARC, MTA-STS, TLS-RPT, BIMI, DNSSEC, CAA, and mail security checks.
     pub async fn get_email_compliance(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
@@ -1398,7 +1468,7 @@ impl SecurityService {
             method: "GET".to_string(),
             path: "/v1/ssl/expiring".to_string(),
             path_params: vec![],
-            query_params: vec!["domain".to_string(), "threshold_days".to_string()],
+            query_params: vec!["domain".to_string(), "days".to_string(), "threshold_days".to_string()],
             has_body: false,
         }, params).await
     }
@@ -1414,7 +1484,7 @@ impl SecurityService {
         }, params).await
     }
 
-    /// Return best-effort public hostname evidence from a sequential passive pipeline. Discovery tries crt.sh first, then can fall back to HackerTarget, ThreatMiner, the Wayback Machine, and CertSpotter. Results include their evidence source. DomScan does not brute-force names or crawl the target site, so coverage is incomplete.
+    /// Return best-effort hostname evidence from public certificate and passive discovery sources. Coverage is incomplete, and results include provenance with optional DNS verification.
     pub async fn get_subdomains(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
@@ -1436,7 +1506,7 @@ impl SecurityService {
         }, params).await
     }
 
-    /// Find exposed software versions and deterministic web security misconfigurations using verified technology evidence, exact OSV package matching, CISA Known Exploited Vulnerabilities, FIRST EPSS, and isolated Edge Relay rendering. Results separate affected versions from configuration findings and preserve unknown coverage.
+    /// Correlate exposed software versions with authoritative public advisories and exploitation-priority data, and report deterministic web security misconfigurations separately. Results preserve evidence and unknown coverage.
     pub async fn get_vulnerabilities(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
@@ -1447,7 +1517,7 @@ impl SecurityService {
         }, params).await
     }
 
-    /// Validate, normalize, and enrich international phone numbers with country-specific coverage levels, offline numbering-plan, location, time-zone, original prefix-carrier, portability-support, dialing, short-number, service, and official allocation metadata. US NANPA and Canadian CNA/CNAC snapshots add NPA-NXX central office code status and original code-holder evidence. DomScan uses its own Edge Relay and free local datasets without paid or per-number third-party lookups. Results never claim current carrier, reachability, subscriber identity, or individual-number assignment.
+    /// Validate, normalize, and enrich international phone numbers with maintained offline numbering-plan and public allocation data. Results include coverage, provenance, freshness, and limitations without paid or per-number third-party lookups, and never claim current carrier, reachability, subscriber identity, or individual-number assignment.
     pub async fn validate_phone_number(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "POST".to_string(),
@@ -1458,7 +1528,7 @@ impl SecurityService {
         }, params).await
     }
 
-    /// Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and uses one DomScan Edge Relay batch with zero paid or per-number third-party lookups.
+    /// Validate and enrich up to 100 phone numbers in one privacy-first request. Preserves input order and duplicates, supports shared or per-item parsing, dialing-country, and language context, and makes no paid or per-number third-party lookup.
     pub async fn validate_phone_numbers_bulk(&self, params: Params) -> Result<Value, DomScanError> {
         self.client.request(EndpointDefinition {
             method: "POST".to_string(),
@@ -1525,6 +1595,24 @@ impl SocialService {
         self.client.request(EndpointDefinition {
             method: "GET".to_string(),
             path: "/v1/social/info".to_string(),
+            path_params: vec![],
+            query_params: vec![],
+            has_body: false,
+        }, params).await
+    }
+}
+
+#[derive(Clone)]
+pub struct UserService {
+    client: Arc<InnerClient>,
+}
+
+impl UserService {
+    /// Get the active customer account credit balance without exposing transaction history.
+    pub async fn get_credit_balance(&self, params: Params) -> Result<Value, DomScanError> {
+        self.client.request(EndpointDefinition {
+            method: "GET".to_string(),
+            path: "/v1/credits".to_string(),
             path_params: vec![],
             query_params: vec![],
             has_body: false,

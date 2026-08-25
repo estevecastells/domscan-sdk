@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>net.domscan</groupId>
   <artifactId>domscan-sdk-java</artifactId>
-  <version>0.2.0</version>
+  <version>0.3.0</version>
   <name>DomScan Java SDK</name>
   <description>Official Java SDK for the DomScan API</description>
   <url>https://github.com/estevecastells/domscan-sdk</url>

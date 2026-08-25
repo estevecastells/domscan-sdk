@@ -1,6 +1,6 @@
 {
   "name": "@domscan/sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Official Node.js and TypeScript SDK for the DomScan Domain Intelligence API",
   "license": "MIT",
   "type": "module",
@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "typescript": "^5.4.0",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.7"
   },
   "keywords": [
     "domscan",

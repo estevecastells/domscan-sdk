@@ -13,7 +13,7 @@ function BunLikeReadFile(file) {
 }
 
 const namespaces = Object.entries(manifest);
-const SDK_VERSION = '0.2.0';
+const SDK_VERSION = '0.3.0';
 const endpointCount = namespaces.reduce(
   (total, [, methods]) => total + Object.keys(methods).length,
   0
@@ -29,6 +29,7 @@ const namespaceClassNames = {
   pricing: 'Pricing',
   recipes: 'Recipes',
   meta: 'Meta',
+  user: 'User',
 };
 
 function toSnakeCase(value) {
